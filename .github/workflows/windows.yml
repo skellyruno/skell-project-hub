@@ -11,8 +11,8 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
@@ -49,13 +49,11 @@ jobs:
           if ($null -eq $process.ExitCode -or $process.ExitCode -ne 0) {
             throw "Self-test process exited $($process.ExitCode)"
           }
-      - name: Portable ZIP
-        shell: pwsh
-        run: |
-          Compress-Archive -Path 'dist/Skell Project Hub' -DestinationPath 'Skell-Project-Hub-Windows-Portable.zip'
+      # upload-artifact creates the ZIP itself; uploading an existing ZIP
+      # causes an annoying and unnecessary double-unzip for Windows users.
       - uses: actions/upload-artifact@v4
         with:
           name: Skell-Project-Hub-Windows-Portable
-          path: Skell-Project-Hub-Windows-Portable.zip
+          path: dist/
           if-no-files-found: error
           retention-days: 14
