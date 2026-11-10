@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b100e" />
+  <meta name="description" content="A local-first project operations dashboard for the Skelly software and VST ecosystem." />
+  <title>SKELLY — Project Hub</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Primary navigation">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M24 5 41 13v21L24 43 7 34V13L24 5Z" stroke="currentColor" stroke-width="1.7"/><path d="M15 20c1.1-5 5-8 9-8s7.9 3 9 8v7c0 2-3 4-5 5v5h-8v-5c-2-1-5-3-5-5v-7Z" fill="currentColor" opacity=".85"/><path d="M17 23h5m4 0h5M22 32h4" stroke="#0b100e" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+        <div><strong>SKELLY<span class="accent">.</span></strong><small>PROJECT HUB</small></div>
+      </div>
+      <div class="workspace-label">WORKSPACE <span>01</span></div>
+      <nav id="nav" class="navigation">
+        <button type="button" data-nav="overview" class="nav-link is-active"><span class="nav-icon">◫</span>Overview</button>
+        <button type="button" data-nav="projects" class="nav-link"><span class="nav-icon">▦</span>All projects <span id="navProjectCount" class="nav-counter">—</span></button>
+        <button type="button" data-nav="world" class="nav-link"><span class="nav-icon">◎</span>SkellWorld</button>
+        <button type="button" data-nav="workboard" class="nav-link"><span class="nav-icon">☷</span>Workboard</button>
+        <button type="button" data-nav="compare" class="nav-link"><span class="nav-icon">◇</span>Compare engines</button>
+        <button type="button" data-nav="changelog" class="nav-link"><span class="nav-icon">◴</span>Change log</button>
+        <button type="button" data-nav="settings" class="nav-link nav-mobile"><span class="nav-icon">⚙</span>Settings</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="side-note"><span class="signal-dot"></span><div><strong>Local-first workspace</strong><p>Edits save in this browser. Export a backup to share or move devices.</p></div></div>
+        <button type="button" data-nav="settings" class="nav-link"><span class="nav-icon">⚙</span>Data &amp; settings</button>
+        <div class="side-footer">BUILT FOR THE <span>SKELLY</span> ECOSYSTEM<br><span>v1.3 / NOV 2026</span></div>
+      </div>
+    </aside>
+    <div class="app-main">
+      <header class="topbar">
+        <div class="topbar-label"><span class="topbar-dot"></span><span id="breadcrumb">WORKSPACE / OVERVIEW</span></div>
+        <div class="topbar-actions"><button type="button" class="btn btn-quiet quick-jump" data-action="command-palette" title="Search all projects (Ctrl+K)">⌕ Jump <kbd>Ctrl K</kbd></button>
+          <div id="saveIndicator" class="save-indicator" aria-live="polite">● Saved locally</div>
+          <button type="button" class="btn btn-quiet" id="exportTop">↓ Export</button>
+          <button type="button" class="btn btn-primary" id="newProject">+ New project</button>
+        </div>
+      </header>
+      <div id="syncStatus" role="status" aria-live="polite" class="sync-status"></div><main id="main" tabindex="-1"></main>
+      <footer class="main-footer"><span>SKELLY PROJECT HUB</span><span id="footerDate">SNAPSHOT: 07 NOV 2026 · GitHub results are not live until refreshed</span></footer>
+    </div>
+  </div>
+  <dialog id="commandPalette" class="palette-modal" aria-label="Quick project navigation"><div class="palette-inner"><div class="palette-head"><strong>Jump to project</strong><span>ESC TO CLOSE</span></div><input id="paletteSearch" autocomplete="off" placeholder="Search every project, task, or repository…" aria-label="Search projects"/><div id="paletteResults" class="palette-results"></div><div class="palette-foot">↑ ↓ Navigate · Enter open · Ctrl K open</div></div></dialog><dialog id="modal" aria-label="Edit workspace data"><div id="modalContent"></div></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <input id="importFile" type="file" accept="application/json,.json" hidden />
+  <script src="seed.js"></script>
+  <script src="app.js"></script>
+  <script src="desktop_bridge.js"></script>
+</body>
+</html>
