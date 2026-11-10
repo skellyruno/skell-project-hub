@@ -1,0 +1,59 @@
+name: Windows Project Hub
+on:
+  push:
+    branches: [main, 'dev/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-build.txt
+      - name: Install packaging and browser test dependencies
+        run: |
+          python -m pip install -r requirements-build.txt
+          python -m pip install playwright==1.56.0
+          python -m playwright install chromium
+      - name: Python syntax and tests
+        run: |
+          python -m compileall -q desktop tests
+          python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: JavaScript syntax
+        run: |
+          node --check seed.js
+          node --check app.js
+          node --check desktop_bridge.js
+      - name: Generate standalone browser dashboard
+        run: python build_standalone.py
+      - name: Headless dashboard smoke tests
+        run: python tests/smoke_test.py
+      - name: Desktop bridge browser integration
+        run: python tests/test_desktop_ui.py
+      - name: Build Windows desktop app
+        run: python -m PyInstaller --clean --noconfirm skell_project_hub.spec
+      - name: Executable self-test
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'dist/Skell Project Hub/Skell Project Hub.exe'
+          if (-not (Test-Path $exe)) { throw 'Missing Windows executable' }
+          # Window-subsystem executables do not reliably set PowerShell's LASTEXITCODE.
+          $process = Start-Process -FilePath $exe -ArgumentList '--self-test' -Wait -PassThru
+          if ($null -eq $process.ExitCode -or $process.ExitCode -ne 0) {
+            throw "Self-test process exited $($process.ExitCode)"
+          }
+      # upload-artifact creates the ZIP itself; uploading an existing ZIP
+      # causes an annoying and unnecessary double-unzip for Windows users.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Skell-Project-Hub-Windows-Portable
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14

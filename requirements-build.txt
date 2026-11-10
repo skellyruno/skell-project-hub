@@ -1,0 +1,3 @@
+# Windows packaging dependencies only; no npm, no Electron, no bundled browser.
+pywebview==5.4
+pyinstaller==6.16.0
