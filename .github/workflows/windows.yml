@@ -44,8 +44,11 @@ jobs:
         run: |
           $exe = Join-Path $PWD 'dist/Skell Project Hub/Skell Project Hub.exe'
           if (-not (Test-Path $exe)) { throw 'Missing Windows executable' }
-          & $exe --self-test
-          if ($LASTEXITCODE -ne 0) { throw "Self-test exited $LASTEXITCODE" }
+          # Window-subsystem executables do not reliably set PowerShell's LASTEXITCODE.
+          $process = Start-Process -FilePath $exe -ArgumentList '--self-test' -Wait -PassThru
+          if ($null -eq $process.ExitCode -or $process.ExitCode -ne 0) {
+            throw "Self-test process exited $($process.ExitCode)"
+          }
       - name: Portable ZIP
         shell: pwsh
         run: |
