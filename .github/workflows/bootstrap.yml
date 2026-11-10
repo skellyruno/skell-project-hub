@@ -37,7 +37,11 @@ jobs:
           assert Path('desktop/main.py').is_file()
           assert Path('app.js').is_file()
           assert Path('.github/workflows/windows.yml').is_file()
-          # The Actions GITHUB_TOKEN cannot add or delete workflow files.\n          # A GitHub connector with workflow permission will create windows.yml separately.\n          Path('.github/workflows/windows.yml').unlink()\n          archive.unlink()\n          Path('bootstrap').rmdir()
+          # The Actions GITHUB_TOKEN cannot add or delete workflow files.
+          # A GitHub connector with workflow permission will create windows.yml separately.
+          Path('.github/workflows/windows.yml').unlink()
+          archive.unlink()
+          Path('bootstrap').rmdir()
           print('Imported', len(members), 'reviewable source files')
           PY
       - name: Commit imported source to development branch
