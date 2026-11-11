@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 import tempfile
 import threading
-import time
 
 MAX_WORKSPACE = 5 * 1024 * 1024
 MAX_SNAPSHOTS = 4 * 1024 * 1024
@@ -43,7 +42,6 @@ class WorkspaceStore:
     def __init__(self, root: Path | None = None):
         self.root = Path(root) if root is not None else storage_root()
         self._lock = threading.RLock()
-        self._backup_at = float("-inf")
 
     def _read(self, name: str, limit: int) -> str | None:
         path = self.root / name
@@ -104,13 +102,14 @@ class WorkspaceStore:
                 previous = self._read("workspace.json", MAX_WORKSPACE)
                 if previous == raw:
                     return {"ok": True}
-                now = time.monotonic()
-                if previous and (now - self._backup_at >= 30 * 60):
+                # Always preserve the *immediately* preceding valid revision.
+                # A timed backup could lose up to 30 minutes of edits on corruption.
+                # Never replace an older valid recovery copy with malformed bytes.
+                if previous:
                     try:
                         if valid_workspace(json.loads(previous)):
                             self._atomic("workspace.previous.json", previous)
-                            self._backup_at = now
-                    except ValueError:
+                    except (ValueError, TypeError):
                         pass
                 self._atomic("workspace.json", raw)
             return {"ok": True}

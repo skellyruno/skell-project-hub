@@ -24,9 +24,10 @@ def test_desktop_bridge():
             'warning':'SW1 informational only'}
         page.evaluate('''(mock) => {
           window.__saveCalls=[];
+          window.__failNativeOnce=false;
           window.pywebview={api:{
             load_workspace:async()=>mock.bridge,
-            save_workspace:async(v)=>{window.__saveCalls.push(v);return {ok:true}},
+            save_workspace:async(v)=>{window.__saveCalls.push(v);if(window.__failNativeOnce){window.__failNativeOnce=false;return {ok:false,error:'Simulated disk full'}}return {ok:true}},
             save_snapshots:async()=>({ok:true}),
             world_status:async()=>mock.status,
             choose_project_folder:async()=>'/tmp/test-folder',
@@ -42,10 +43,21 @@ def test_desktop_bridge():
         assert page.locator('.world-project').count()>=20
         page.locator('button[data-nav="projects"]').first.click()
         page.locator('.project-card').first.click()
-        # Native save is called after a real user edit.
+        # A transient disk failure retains the newest workspace for a later retry.
+        page.evaluate('window.__failNativeOnce=true')
         page.locator('button[data-action="choose-folder"]').click()
-        page.wait_for_function('window.__saveCalls.length>0')
+        page.wait_for_function('skellDesktop.diskStatus==="retry"')
+        assert page.evaluate('skellDesktop.pendingWorkspace!==null')
         assert page.evaluate('data.projects.some(p=>p.localFolder==="/tmp/test-folder")')
+        page.evaluate("""async () => {
+          clearTimeout(skellDesktop.retryTimer);skellDesktop.retryTimer=null;
+          await skellDesktop.flushWorkspace();
+        }""")
+        page.wait_for_function('skellDesktop.diskStatus==="saved"')
+        assert page.evaluate('skellDesktop.pendingWorkspace===null')
+        assert page.evaluate('window.__saveCalls.length>=2')
+        page.locator('button[data-nav="settings"]').last.click()
+        assert 'AppData workspace' in page.locator('#nativeSaveMessage').inner_text()
         assert not errors,errors
         browser.close()
 

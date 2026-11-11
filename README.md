@@ -112,3 +112,11 @@ python -m desktop.main --self-test
 ```
 
 A successful CI build proves a distributable was produced and passed the automated tests; it is not evidence of a verified VST3 or DAW host test.
+
+## v1.4 — Safer updates and evidence (November 11, 2026)
+
+The **desktop AppData workspace** now keeps the immediately preceding valid revision on every successful distinct write. If a disk write fails, the current browser copy is retained and a bounded retry is scheduled; the native storage indicator and **Data & settings → Workspace save health** display the pending/saved state. Always export important work periodically to an external backup, especially if the drive is nearly full.
+
+**Release readiness** requires a matching current GitHub commit SHA and successful GitHub run as well as manual host/DAW validation. A successful run for another commit, or an unavailable HEAD check, is not counted as a CI pass. This is a conservative readiness indicator, **not** a guarantee that the app has passed DAW tests. GitHub monitoring remains active only while the desktop app/window is open.
+
+No privileged SkellWorld API, DAW control, or automatic file changes have been added. The existing localhost dashboard remains read-only.

@@ -13,7 +13,7 @@ except ImportError:
     from storage import WorkspaceStore, storage_root
     from world import discover
 
-APP_VERSION = "1.3.0"
+APP_VERSION = "1.4.0"
 APP_ID = "uno.skellyr.projecthub"
 
 

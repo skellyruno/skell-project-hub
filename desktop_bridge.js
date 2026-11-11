@@ -7,30 +7,66 @@ const skellDesktop = {
   pendingSnapshots: null,
   workspaceWriter: null,
   snapshotWriter: null,
+  retryTimer: null,
+  retryDelayMs: 3000,
+  diskStatus: 'loading',
+  lastSuccessfulAt: null,
+  lastDiskError: '',
+  warnedSaveError: false,
   isDesktop(){return this.ready && !!window.pywebview?.api;},
+  storageSummary(){
+    if(this.diskStatus==='saved')return 'Saved to your AppData workspace' + (this.lastSuccessfulAt?' · '+new Date(this.lastSuccessfulAt).toLocaleTimeString():'');
+    if(this.diskStatus==='retry')return 'Disk save pending retry — browser copy preserved. '+this.lastDiskError;
+    if(this.diskStatus==='pending')return 'Saving the latest workspace to AppData…';
+    return 'Checking your AppData workspace…';
+  },
+  showStorageState(){
+    const caption=this.storageSummary();
+    const indicator=document.getElementById('saveIndicator');
+    if(indicator)indicator.textContent=(this.diskStatus==='retry'?'⚠ ':this.diskStatus==='saved'?'● ':'◌ ')+caption;
+    const detail=document.getElementById('nativeSaveMessage');
+    if(detail)detail.textContent=caption;
+  },
   saveWorkspace(){
     if(!this.isDesktop())return;
     this.pendingWorkspace=localStorage.getItem(STORAGE_KEY)||JSON.stringify(data);
+    // A new user edit supersedes the older payload, including one pending retry.
+    if(this.retryTimer!==null){clearTimeout(this.retryTimer);this.retryTimer=null;}
+    this.diskStatus='pending';this.showStorageState();
     if(!this.workspaceWriter)this.workspaceWriter=this.flushWorkspace();
   },
   async flushWorkspace(){
     try{
       while(this.pendingWorkspace!==null){
-        const raw=this.pendingWorkspace;this.pendingWorkspace=null;
-        const result=await window.pywebview.api.save_workspace(raw);
+        const raw=this.pendingWorkspace;
+        this.pendingWorkspace=null;
+        let result;
+        try{result=await window.pywebview.api.save_workspace(raw)}
+        catch(err){result={ok:false,error:String(err)}}
         if(!result?.ok){
-          document.getElementById('saveIndicator').textContent='⚠ Native save failed';
-          console.error('Native save failed',result?.error);
-          toast('Native disk save failed. Export a JSON backup.');
+          // Preserve a newer queued revision if another edit arrived in flight.
+          if(this.pendingWorkspace===null)this.pendingWorkspace=raw;
+          this.diskStatus='retry';
+          this.lastDiskError=String(result?.error||'Unknown native write error').slice(0,180);
+          this.showStorageState();
+          if(!this.warnedSaveError)toast('AppData save failed. Will retry; export JSON for an external backup.');
+          this.warnedSaveError=true;
+          break;
         }
+        this.lastSuccessfulAt=new Date().toISOString();
+        this.lastDiskError='';this.warnedSaveError=false;
+        this.retryDelayMs=3000;
+        this.diskStatus=this.pendingWorkspace===null?'saved':'pending';
+        this.showStorageState();
       }
-    }catch(err){
-      console.error('Native save error',err);
-      document.getElementById('saveIndicator').textContent='⚠ Native save failed';
-      toast('Native save unavailable. Export a JSON backup.');
     }finally{
       this.workspaceWriter=null;
-      if(this.pendingWorkspace!==null)this.saveWorkspace();
+      if(this.pendingWorkspace!==null){
+        if(this.diskStatus==='retry'){
+          this.retryTimer=setTimeout(()=>{this.retryTimer=null;if(!this.workspaceWriter)this.workspaceWriter=this.flushWorkspace()},this.retryDelayMs);
+          this.retryDelayMs=Math.min(60000,this.retryDelayMs*2);
+        }else this.workspaceWriter=this.flushWorkspace();
+      }
     }
   },
   saveSnapshots(){
@@ -67,13 +103,18 @@ const skellDesktop = {
       }
       localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
       this.ready=true;
+      this.diskStatus='saved';
       automationConfig();render(false);scheduleAutoSync();
-      if(!disk || (local && localTime>diskTime))this.saveWorkspace();
+      // Repair a corrupt primary disk file after recovery from its valid backup.
+      if(restored.recovered || !disk || (local && localTime>diskTime))this.saveWorkspace();
+      else this.showStorageState();
       if(restored.recovered)toast('Workspace recovered from the previous valid disk copy');
       refreshWorld();
     }catch(err){
       console.error('Desktop workspace initialization error',err);
       this.ready=true;
+      this.diskStatus='retry';this.lastDiskError='Could not load native workspace';
+      this.showStorageState();
       toast('Native workspace unavailable; export a JSON backup');
     }finally{this.loading=false}
   }

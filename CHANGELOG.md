@@ -20,3 +20,14 @@
 - Safe read-only SkellWorld status and catalog discovery; offline fallback, accurate planned-vs-connected states, and developer integration manifest. SW1 remains unchanged.
 - GitHub Actions Windows portable ZIP build, native storage/security tests, and headless UI integration smoke tests.
 - Pending: Windows EXE artifact verification by real Actions run, Windows GUI smoke/visual tests, SkellWorld launcher counterpart.
+
+## v1.4 — Native data safety and verified CI evidence (2026-11-11)
+
+- Native disk save failures now retain the newest pending workspace and retry with bounded exponential backoff; the UI shows saving, saved, and retry states.
+- Automatic recovery repairs a damaged primary disk workspace after loading its valid previous revision.
+- Each distinct successful disk save preserves the immediately previous valid version, rather than a potentially 30-minute-old recovery snapshot.
+- Release readiness now requires a GitHub-observed successful run matching the inspected current commit and a real-world validation pass; historical/manual/unknown evidence cannot silently qualify.
+- Github refresh ignores in-flight results for a project replaced by an import or reset, and cannot mark a workflow pass when HEAD lookup fails or the run SHA differs.
+- Added regression tests for rotating recovery files, transient native save errors, and mismatched or unavailable GitHub HEAD evidence.
+
+**Remaining:** Live Windows WebView2 visual and CPU profiling, SkellWorld launcher counterpart, and non-browser background builder remain separate milestones. Read-only SkellWorld connectivity is unchanged.

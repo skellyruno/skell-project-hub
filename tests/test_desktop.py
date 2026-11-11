@@ -28,6 +28,26 @@ class WorkspaceTests(TestCase):
             self.assertEqual(store.load()["workspace"], DATA)
             self.assertTrue(store.load()["recovered"])
 
+    def test_previous_backup_is_latest_revision(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            store = WorkspaceStore(root)
+            original = json.loads(DATA)
+            self.assertTrue(store.save_workspace(json.dumps(original))["ok"])
+            original["projects"][0]["id"] = "revision-two"
+            revision_two = json.dumps(original)
+            self.assertTrue(store.save_workspace(revision_two)["ok"])
+            original["projects"][0]["id"] = "revision-three"
+            self.assertTrue(store.save_workspace(json.dumps(original))["ok"])
+            # The recoverable previous revision must be the *second*, not the first.
+            (root / "workspace.json").write_text("{broken", encoding="utf-8")
+            self.assertTrue(store.load()["recovered"])
+            self.assertEqual(store.load()["workspace"], revision_two)
+            # Repairing the primary file must not replace the valid recovery copy
+            # with bytes from the corrupted primary.
+            self.assertTrue(store.save_workspace(revision_two)["ok"])
+            self.assertEqual(store.load()["workspace"], revision_two)
+
     def test_atomic_size_and_snapshot_limits(self):
         with tempfile.TemporaryDirectory() as td:
             store = WorkspaceStore(Path(td))
