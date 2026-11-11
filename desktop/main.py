@@ -5,6 +5,12 @@ import json
 import os
 from pathlib import Path
 import sys
+import traceback
+
+try:
+    from .runtime_check import probe_pythonnet
+except ImportError:
+    from runtime_check import probe_pythonnet
 
 try:
     from .storage import WorkspaceStore, storage_root
@@ -13,7 +19,7 @@ except ImportError:
     from storage import WorkspaceStore, storage_root
     from world import discover
 
-APP_VERSION = "1.4.0"
+APP_VERSION = "1.4.1"
 APP_ID = "uno.skellyr.projecthub"
 
 
@@ -77,26 +83,88 @@ def self_test() -> int:
     return 0
 
 
+def startup_failure(message: str, *, interactive: bool) -> None:
+    """Log a failure outside the installation folder, leaving project data intact."""
+    try:
+        folder = storage_root()
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / 'startup-error.log').write_text(message[:16000], encoding='utf-8')
+    except OSError:
+        pass
+    if interactive and sys.platform == 'win32':
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(
+                None, 'Project Hub could not open.\n\n' + message[:1400]
+                + '\n\nIf you trust this download, unblock the ZIP and extract again, '
+                  'or run Repair-Project-Hub.cmd in the extracted folder.\n\n'
+                  'Your project data has not been changed.',
+                'SKELL Project Hub - Startup error', 0x10)
+        except Exception:
+            pass
+
+
+def run_gui(*, smoke: bool = False) -> int:
+    diagnosis = probe_pythonnet()
+    if not diagnosis['ok']:
+        startup_failure(diagnosis['message'], interactive=not smoke)
+        return 1
+    try:
+        import webview
+        bridge = Bridge()
+        root = storage_root()
+        root.mkdir(parents=True, exist_ok=True)
+        window = webview.create_window(
+            'SKELL Project Hub', str(assets() / 'index.html'), js_api=bridge,
+            width=1110, height=760, min_size=(850, 590),
+            background_color='#0b100e', text_select=True)
+        result = {'ok': False, 'error': 'WebView2 page did not load'}
+
+        def smoke_window():
+            try:
+                if not window.events.loaded.wait(20):
+                    result['error'] = 'Timed out waiting for WebView2 document'
+                elif window.evaluate_js('Boolean(document.querySelector("[data-nav=projects]"))'):
+                    result['ok'] = True
+                else:
+                    result['error'] = 'Project Hub navigation is missing'
+            except Exception as error:
+                result['error'] = str(error)
+            finally:
+                try:
+                    window.destroy()
+                except Exception:
+                    pass
+
+        webview.start(smoke_window if smoke else None,
+                      gui='edgechromium' if sys.platform == 'win32' else None,
+                      private_mode=False, storage_path=str(root / 'webview'), debug=False)
+        if smoke and not result['ok']:
+            startup_failure(result['error'], interactive=False)
+            return 1
+        return 0
+    except Exception:
+        startup_failure(traceback.format_exc(), interactive=not smoke)
+        return 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="SKELL Project Hub native desktop application")
-    parser.add_argument("--self-test", action="store_true", help="Check bundle assets and basic file persistence without starting UI")
+    parser.add_argument("--self-test", action="store_true", help="Check bundle assets and persistence")
+    parser.add_argument("--runtime-probe", action="store_true", help="Verify the packaged Windows .NET bridge")
+    parser.add_argument("--gui-smoke-test", action="store_true", help="Open and validate the real WebView2 window")
     args = parser.parse_args()
     if args.self_test:
         return self_test()
-    if not (assets() / "index.html").is_file():
-        print("Project Hub assets are missing", file=sys.stderr)
+    if args.runtime_probe:
+        result = probe_pythonnet()
+        if not result['ok']:
+            startup_failure(result['message'], interactive=False)
+        return 0 if result['ok'] else 1
+    if not (assets() / 'index.html').is_file():
+        startup_failure('Project Hub assets are missing', interactive=not args.gui_smoke_test)
         return 1
-    import webview  # imported only when GUI is requested; self-test works without GUI
-    bridge = Bridge()
-    storage = storage_root()
-    storage.mkdir(parents=True, exist_ok=True)
-    webview.create_window("SKELL Project Hub", str(assets() / "index.html"),
-                          js_api=bridge, width=1110, height=760, min_size=(850, 590),
-                          background_color="#0b100e", text_select=True)
-    # Persistent WebView2 profile plus canonical JSON data in AppData. No local web server.
-    webview.start(gui="edgechromium" if sys.platform == "win32" else None,
-                  private_mode=False, storage_path=str(storage / "webview"), debug=False)
-    return 0
+    return run_gui(smoke=args.gui_smoke_test)
 
 
 if __name__ == "__main__":

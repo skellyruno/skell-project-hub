@@ -49,6 +49,43 @@ jobs:
           if ($null -eq $process.ExitCode -or $process.ExitCode -ne 0) {
             throw "Self-test process exited $($process.ExitCode)"
           }
+      - name: Verify packaged CLR runtime
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'dist/Skell Project Hub/Skell Project Hub.exe'
+          $dll = Join-Path $PWD 'dist/Skell Project Hub/_internal/pythonnet/runtime/Python.Runtime.dll'
+          if (-not (Test-Path $dll)) { throw 'Python.Runtime.dll missing' }
+          $p = Start-Process -FilePath $exe -ArgumentList '--runtime-probe' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Pythonnet probe failed $($p.ExitCode)" }
+      - name: Test downloaded DLL detection and recovery
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'dist/Skell Project Hub/Skell Project Hub.exe'
+          $dll = Join-Path $PWD 'dist/Skell Project Hub/_internal/pythonnet/runtime/Python.Runtime.dll'
+          try {
+            Set-Content -LiteralPath ($dll + ':Zone.Identifier') -Value ("[ZoneTransfer]" + [char]10 + "ZoneId=3")
+            $p = Start-Process -FilePath $exe -ArgumentList '--runtime-probe' -Wait -PassThru
+            if ($p.ExitCode -eq 0) { throw 'Expected blocked download warning' }
+          } finally {
+            Unblock-File -LiteralPath $dll
+          }
+          $p = Start-Process -FilePath $exe -ArgumentList '--runtime-probe' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw 'Runtime did not recover after unblocking' }
+      - name: Verify actual native WebView2 window opens
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'dist/Skell Project Hub/Skell Project Hub.exe'
+          $p = Start-Process -FilePath $exe -ArgumentList '--gui-smoke-test' -PassThru
+          if (-not $p.WaitForExit(45000)) {
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            throw 'GUI smoke test timed out'
+          }
+          if ($p.ExitCode -ne 0) { throw "GUI smoke test failed $($p.ExitCode)" }
+      - name: Package opt-in download repair tool
+        shell: pwsh
+        run: |
+          Copy-Item scripts/Repair-Project-Hub.cmd 'dist/Skell Project Hub/'
+          Copy-Item scripts/Repair-Project-Hub.ps1 'dist/Skell Project Hub/'
       # upload-artifact creates the ZIP itself; uploading an existing ZIP
       # causes an annoying and unnecessary double-unzip for Windows users.
       - uses: actions/upload-artifact@v4
