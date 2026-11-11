@@ -2,7 +2,7 @@
   "schema": "skellworld-app/1",
   "id": "uno.skellyr.projecthub",
   "name": "SKELL Project Hub",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "mode": "developer",
   "repository": "skellyruno/skell-project-hub",
   "integration": "read-only-console-discovery",

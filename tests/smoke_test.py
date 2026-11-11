@@ -9,11 +9,14 @@ Object.defineProperty(window,'localStorage',{configurable:true,value:{getItem(k)
 window.confirm=()=>true;
 window.__fetchCalls=[];
 window.__mockStatus='success';
+window.__mockWrongSha=false;
+window.__mockCommitFailure=false;
 window.fetch=async function(url){
   const u=String(url);window.__fetchCalls.push(u);
   const sha='a'.repeat(40);
+  if(u.includes('/commits?')&&window.__mockCommitFailure)return {ok:false,status:503,json:async()=>({})};
   if(u.includes('/commits?'))return {ok:true,json:async()=>[{sha,html_url:'https://github.com/skellyruno/test/commit/'+sha,commit:{message:'Fix test',committer:{date:'2026-11-09T14:34:00Z'}}}]};
-  if(u.includes('/actions/runs?'))return {ok:true,json:async()=>({workflow_runs:[{head_sha:sha,status:'completed',conclusion:window.__mockStatus,name:'Windows VST3',html_url:'https://github.com/skellyruno/test/actions/runs/123',created_at:'2026-11-09T14:34:00Z'}]})};
+  if(u.includes('/actions/runs?'))return {ok:true,json:async()=>({workflow_runs:[{head_sha:window.__mockWrongSha?'b'.repeat(40):sha,status:'completed',conclusion:window.__mockStatus,name:'Windows VST3',html_url:'https://github.com/skellyruno/test/actions/runs/123',created_at:'2026-11-09T14:34:00Z'}]})};
   if(u.includes('/releases?'))return {ok:false,status:404,json:async()=>({})};
   throw Error('Unexpected URL: '+u);
 };
@@ -59,6 +62,18 @@ with sync_playwright() as pl:
     autoresult=page.evaluate('''async () => {automationConfig().enabled=true;return await runRefresh({automatic:true,scope:'priority'})}''')
     assert autoresult['ok']>0
     assert page.evaluate('window.__fetchCalls.every(url => !url.includes("/releases?"))')
+    # A success on another SHA (or an unavailable commit endpoint) is NEVER a verified pass.
+    page.evaluate('window.__mockWrongSha=true')
+    result_stale=page.evaluate('''async () => await runRefresh({scope:'priority'})''')
+    assert result_stale['ok']>0
+    assert page.evaluate('data.projects[0].ci.status')=='stale'
+    assert page.evaluate('releaseReady(data.projects[0])') is False
+    page.evaluate('window.__mockWrongSha=false;window.__mockCommitFailure=true')
+    result_unknown=page.evaluate('''async () => await runRefresh({scope:'priority'})''')
+    assert result_unknown['partial']>0
+    assert page.evaluate('data.projects[0].ci.status')=='unknown'
+    assert page.evaluate('releaseReady(data.projects[0])') is False
+    page.evaluate('window.__mockCommitFailure=false')
     # transition failure, triggers alert
     page.evaluate('window.__mockStatus="failure"')
     failedresult=page.evaluate('''async () => await runRefresh({scope:'priority'})''')
