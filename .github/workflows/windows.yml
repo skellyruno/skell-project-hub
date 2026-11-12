@@ -9,7 +9,7 @@ permissions:
 jobs:
   build:
     runs-on: windows-2022
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -31,12 +31,15 @@ jobs:
           node --check seed.js
           node --check app.js
           node --check desktop_bridge.js
+          node --check dev_center.js
       - name: Generate standalone browser dashboard
         run: python build_standalone.py
       - name: Headless dashboard smoke tests
         run: python tests/smoke_test.py
       - name: Desktop bridge browser integration
         run: python tests/test_desktop_ui.py
+      - name: Developer Center browser integration
+        run: python tests/test_developer_ui.py
       - name: Build Windows desktop app
         run: python -m PyInstaller --clean --noconfirm skell_project_hub.spec
       - name: Executable self-test

@@ -120,3 +120,34 @@ The **desktop AppData workspace** now keeps the immediately preceding valid revi
 **Release readiness** requires a matching current GitHub commit SHA and successful GitHub run as well as manual host/DAW validation. A successful run for another commit, or an unavailable HEAD check, is not counted as a CI pass. This is a conservative readiness indicator, **not** a guarantee that the app has passed DAW tests. GitHub monitoring remains active only while the desktop app/window is open.
 
 No privileged SkellWorld API, DAW control, or automatic file changes have been added. The existing localhost dashboard remains read-only.
+
+
+## v2.0 — Developer Command Center
+
+The Developer Center lives in the existing Project Hub desktop application, preserving
+workspace data, checklists, notes, browser-only dashboard, and opt-in SkellWorld
+aggregate sharing. Its local Windows Builder runs CMake Release builds inside
+an explicitly linked CMake project folder, with a single cancelable build queue,
+bounded output, elapsed times, and optional CTest.
+
+A CI pass, compile pass, VST3 binary verification, install, and FL Studio host
+validation are distinct states. Actual VST3 evidence requires a nonempty compiled
+binary. Build All operates only on user-linked local projects. Build scripts can
+execute arbitrary code; only link and build directories you trust.
+
+The installer requires an explicit confirmation and a user-selected directory,
+preserves the previous plugin in a rollback backup, and never silently installs.
+Scheduling (60/120/240 minutes) is off by default, runs only while Project Hub
+is open, and cannot install, publish, or access SW1. The UI polls build status
+only while Developer Center is visible.
+
+Project Hub can optionally register the Windows per-user URI
+`skellprojecthub://open` using an explicit in-app click. SkellWorld's separate
+Developer Mode uses a normal OS link and confirmation; this does not give
+SkellWorld privileged access or modify its SW1 plugin-event protocol.
+Project Hub continues to work when SkellWorld is closed.
+
+Source and browser tests: `python -m unittest discover -s tests -p 'test_*.py'`,
+`python tests/smoke_test.py`, `python tests/test_desktop_ui.py`,
+`python tests/test_developer_ui.py`, `node --check dev_center.js`.
+Windows CI additionally builds and loads the actual native EXE.
