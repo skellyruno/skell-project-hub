@@ -16,12 +16,16 @@ try:
     from .storage import WorkspaceStore, storage_root
     from .world import discover
     from .world_summary import WorldSummaryBridge
+    from .builder import BuildManager
+    from .launcher import register, registration_state, valid_launch_url
 except ImportError:
     from storage import WorkspaceStore, storage_root
     from world import discover
     from world_summary import WorldSummaryBridge
+    from builder import BuildManager
+    from launcher import register, registration_state, valid_launch_url
 
-APP_VERSION = "1.4.1"
+APP_VERSION = "2.0.0"
 APP_ID = "uno.skellyr.projecthub"
 
 
@@ -35,6 +39,60 @@ class Bridge:
     def __init__(self, store: WorkspaceStore | None = None, world_bridge: WorldSummaryBridge | None = None):
         self.store = store if store is not None else WorkspaceStore()
         self.world_bridge = world_bridge if world_bridge is not None else WorldSummaryBridge(self.store)
+        self._builder = None
+
+    @property
+    def builder(self):
+        if self._builder is None:
+            self._builder = BuildManager(self.store.root)
+        return self._builder
+
+    def close(self):
+        if self._builder is not None:
+            self._builder.shutdown()
+
+    def builder_status(self) -> dict:
+        return self.builder.status()
+
+    def builder_link_folder(self, project_id: str) -> dict:
+        # Never accept arbitrary JavaScript-provided folder paths.
+        import webview
+        selection = webview.windows[0].create_file_dialog(webview.FOLDER_DIALOG)
+        if not selection:
+            return {"ok": False, "error": "Folder selection cancelled"}
+        return self.builder.link_folder(project_id, str(selection[0]))
+
+    def builder_start(self, project_ids: list, with_tests: bool = True) -> dict:
+        return self.builder.start(project_ids, with_tests=with_tests)
+
+    def builder_cancel(self) -> dict:
+        return self.builder.cancel()
+
+    def builder_schedule(self, project_id: str, interval_minutes: int,
+                         with_tests: bool, enabled: bool) -> dict:
+        return self.builder.set_schedule(project_id, interval_minutes, with_tests, enabled)
+
+    def builder_install(self, project_id: str, confirmed: bool) -> dict:
+        if confirmed is not True:
+            return {"ok": False, "error": "Explicit confirmation required"}
+        import webview
+        selection = webview.windows[0].create_file_dialog(webview.FOLDER_DIALOG)
+        if not selection:
+            return {"ok": False, "error": "Installation destination not selected"}
+        return self.builder.install_artifact(project_id, str(selection[0]), confirmed=True)
+
+    def builder_rollback(self, project_id: str, confirmed: bool) -> dict:
+        return self.builder.rollback_install(project_id, confirmed=confirmed)
+
+    def launcher_status(self) -> dict:
+        return registration_state(Path(sys.executable))
+
+    def launcher_manage(self, enabled: bool) -> dict:
+        if not isinstance(enabled, bool):
+            return {"ok": False, "error": "Explicit boolean required"}
+        if not getattr(sys, "frozen", False):
+            return {"ok": False, "error": "Launcher registration requires the packaged Windows EXE"}
+        return register(Path(sys.executable), unregister=not enabled)
 
     def load_workspace(self) -> dict:
         return self.store.load()
@@ -122,6 +180,7 @@ def run_gui(*, smoke: bool = False) -> int:
     if not diagnosis['ok']:
         startup_failure(diagnosis['message'], interactive=not smoke)
         return 1
+    bridge = None
     try:
         import webview
         bridge = Bridge()
@@ -129,7 +188,7 @@ def run_gui(*, smoke: bool = False) -> int:
         root.mkdir(parents=True, exist_ok=True)
         window = webview.create_window(
             'SKELL Project Hub', str(assets() / 'index.html'), js_api=bridge,
-            width=1110, height=760, min_size=(850, 590),
+            width=1060, height=730, min_size=(830, 580),
             background_color='#0b100e', text_select=True)
         result = {'ok': False, 'error': 'WebView2 page did not load'}
 
@@ -137,7 +196,7 @@ def run_gui(*, smoke: bool = False) -> int:
             try:
                 if not window.events.loaded.wait(20):
                     result['error'] = 'Timed out waiting for WebView2 document'
-                elif window.evaluate_js('Boolean(document.querySelector("[data-nav=projects]"))'):
+                elif window.evaluate_js('Boolean(document.querySelector("[data-nav=developer]"))'):
                     result['ok'] = True
                 else:
                     result['error'] = 'Project Hub navigation is missing'
@@ -159,6 +218,9 @@ def run_gui(*, smoke: bool = False) -> int:
     except Exception:
         startup_failure(traceback.format_exc(), interactive=not smoke)
         return 1
+    finally:
+        if bridge is not None:
+            bridge.close()
 
 
 def main() -> int:
@@ -166,6 +228,7 @@ def main() -> int:
     parser.add_argument("--self-test", action="store_true", help="Check bundle assets and persistence")
     parser.add_argument("--runtime-probe", action="store_true", help="Verify the packaged Windows .NET bridge")
     parser.add_argument("--gui-smoke-test", action="store_true", help="Open and validate the real WebView2 window")
+    parser.add_argument("--from-skellworld", nargs="?", const="", default=None)
     args = parser.parse_args()
     if args.self_test:
         return self_test()
@@ -174,6 +237,9 @@ def main() -> int:
         if not result['ok']:
             startup_failure(result['message'], interactive=False)
         return 0 if result['ok'] else 1
+    if args.from_skellworld is not None and not valid_launch_url(args.from_skellworld):
+        startup_failure('Invalid SkellWorld URL', interactive=False)
+        return 1
     if not (assets() / 'index.html').is_file():
         startup_failure('Project Hub assets are missing', interactive=not args.gui_smoke_test)
         return 1

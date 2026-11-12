@@ -4,7 +4,7 @@ from PyInstaller.utils.hooks import collect_all
 
 root = Path(SPECPATH)
 webview_data, webview_binaries, webview_hidden = collect_all('webview')
-assets = [(str(root / f), 'web') for f in ('index.html','app.js','seed.js','styles.css','desktop_bridge.js')]
+assets = [(str(root / f), 'web') for f in ('index.html','app.js','seed.js','styles.css','desktop_bridge.js','dev_center.css','dev_center.js')]
 a = Analysis(['desktop/main.py'], pathex=[str(root), str(root / 'desktop')],
     binaries=webview_binaries, datas=webview_data + assets + [(str(root/'desktop'/'skellworld-app.json'), '.')],
     hiddenimports=webview_hidden, excludes=['tkinter', 'PyQt5', 'PyQt6', 'PySide2', 'PySide6'],

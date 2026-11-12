@@ -7,6 +7,7 @@
   <meta name="description" content="A local-first project operations dashboard for the Skelly software and VST ecosystem." />
   <title>SKELLY — Project Hub</title>
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="dev_center.css" />
 </head>
 <body>
   <div class="app-shell">
@@ -19,6 +20,7 @@
       <nav id="nav" class="navigation">
         <button type="button" data-nav="overview" class="nav-link is-active"><span class="nav-icon">◫</span>Overview</button>
         <button type="button" data-nav="projects" class="nav-link"><span class="nav-icon">▦</span>All projects <span id="navProjectCount" class="nav-counter">—</span></button>
+        <button type="button" data-nav="developer" class="nav-link"><span class="nav-icon">⚒</span>Developer Center</button>
         <button type="button" data-nav="world" class="nav-link"><span class="nav-icon">◎</span>SkellWorld</button>
         <button type="button" data-nav="workboard" class="nav-link"><span class="nav-icon">☷</span>Workboard</button>
         <button type="button" data-nav="compare" class="nav-link"><span class="nav-icon">◇</span>Compare engines</button>
@@ -28,7 +30,7 @@
       <div class="sidebar-bottom">
         <div class="side-note"><span class="signal-dot"></span><div><strong>Local-first workspace</strong><p>Edits save in this browser. Export a backup to share or move devices.</p></div></div>
         <button type="button" data-nav="settings" class="nav-link"><span class="nav-icon">⚙</span>Data &amp; settings</button>
-        <div class="side-footer">BUILT FOR THE <span>SKELLY</span> ECOSYSTEM<br><span>v1.3 / NOV 2026</span></div>
+        <div class="side-footer">BUILT FOR THE <span>SKELLY</span> ECOSYSTEM<br><span>v2.0 / NOV 2026</span></div>
       </div>
     </aside>
     <div class="app-main">
@@ -50,5 +52,6 @@
   <script src="seed.js"></script>
   <script src="app.js"></script>
   <script src="desktop_bridge.js"></script>
+  <script src="dev_center.js"></script>
 </body>
 </html>

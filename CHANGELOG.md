@@ -31,3 +31,14 @@
 - Added regression tests for rotating recovery files, transient native save errors, and mismatched or unavailable GitHub HEAD evidence.
 
 **Remaining:** Live Windows WebView2 visual and CPU profiling, SkellWorld launcher counterpart, and non-browser background builder remain separate milestones. Read-only SkellWorld connectivity is unchanged.
+
+
+## v2.0 — Developer Command Center (2026-11-12)
+
+- Compact black/neon-green native developer dashboard with responsive project build cards.
+- Opt-in local CMake queue, elapsed time, cancellation, bounded logs, CTest, and VST3 binary verification.
+- Explicit VST3 install with recoverable backups and one-click confirmed rollback.
+- In-app scheduled builds off by default, bounded to known linked project folders.
+- Optional Windows current-user launch URI for SkellWorld Developer Mode; never sends SW1 commands.
+- Daily priority brief derived from recorded project and CI status.
+- Preserves v1.4.1 Windows startup/CLR checks and newer consented count-only SkellWorld sharing.

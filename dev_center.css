@@ -1,0 +1,29 @@
+/* v1.6: quieter, more legible developer surfaces. UI remains GPU-light. */
+:root{--green:#a6f75f;--line:#304332}
+.sidebar{background:linear-gradient(165deg,#101913,#0a100d 74%);border-right-color:#273b2b}
+.brand{letter-spacing:.35px}.nav-link{transition:background .13s,border-color .13s,color .13s}
+.nav-link.is-active{background:linear-gradient(90deg,#22402a,#172a1c);box-shadow:inset 3px 0 #a6f75f}
+.panel{box-shadow:inset 0 1px #c4ff8608,0 8px 30px #00000010}
+.btn:focus-visible,.nav-link:focus-visible{outline:2px solid #caff8d;outline-offset:3px}
+.dev-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.dev-summary-cell{border:1px solid #38503b;border-radius:12px;background:linear-gradient(155deg,#1b2b20,#121c16);padding:19px;min-width:0}
+.dev-summary-cell small{display:block;color:#a7bba8;font-size:10px;font-weight:800;letter-spacing:1.6px}
+.dev-summary-cell strong{display:block;margin:8px 0 3px;font-size:28px;line-height:1.1;letter-spacing:-.7px;color:#b8ff83}
+.dev-summary-cell span{font-size:10px;color:#90a694;line-height:1.5;overflow-wrap:anywhere}
+.dev-columns{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(310px,.85fr);gap:18px;align-items:start}
+.dev-builder-panel{min-width:0}.dev-panel-head{display:flex;justify-content:space-between;align-items:center;gap:15px;margin:0 0 17px}.dev-panel-head h2,.dev-panel-head h3,.dev-side-stack h2{font-size:18px;line-height:1.3;margin:5px 0 7px}.dev-panel-head .small-tag{max-width:240px;white-space:normal}
+.dev-actions{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.dev-build-list{max-height:500px;overflow:auto;border-top:1px solid #304435;border-bottom:1px solid #304435;margin:12px 0 22px}
+.dev-build-row{display:grid;grid-template-columns:36px minmax(150px,1fr) auto auto;gap:12px;align-items:center;padding:13px 2px;border-bottom:1px solid #29392c;min-width:0}.dev-build-row:last-child{border:0}
+.dev-project-letter{width:34px;height:34px;border:1px solid #476744;background:#19351f;border-radius:9px;display:grid;place-items:center;font-size:11px;font-weight:850;color:#baff88}
+.dev-build-name,.dev-build-state{min-width:0}.dev-build-name strong{display:block;font-size:12px}.dev-build-name small{display:block;margin-top:5px;font-size:10px;color:#8fa994;overflow-wrap:anywhere}
+.dev-build-state small{display:block;font-size:9px;color:#91a997;margin-top:5px}.dev-buttons{display:flex;gap:5px}.dev-buttons .btn{white-space:nowrap}
+.dev-side-stack{display:grid;gap:16px;min-width:0}.dev-priority{display:grid;grid-template-columns:80px minmax(0,1fr);gap:3px 9px;align-items:start;padding:11px 0;border-bottom:1px solid #2e4132}.dev-priority:last-child{border:0}
+.dev-severity{font-size:9px;color:#b3cfac;letter-spacing:.5px;font-weight:800}.dev-failed{color:#ed9999}.dev-priority button{text-align:left;border:0;background:none;color:#e3efe2;font-size:12px;font-weight:800;cursor:pointer}.dev-priority button:hover{color:#adff78}.dev-priority small{grid-column:2;color:#9aad9d;font-size:10px;line-height:1.6}
+.dev-label{display:grid;gap:7px;color:#becdbf;font-size:11px;font-weight:700;margin:12px 0}.dev-label select{width:100%;min-width:0;background:#0e1a12;border:1px solid #3b5440;color:#e0f1df;border-radius:8px;padding:10px}
+.dev-check{display:flex;align-items:center;gap:10px;color:#b4c6b5;font-size:11px;margin:12px 0}.dev-check input{accent-color:#a6f75f}
+.dev-history-row{display:grid;grid-template-columns:90px minmax(0,1fr) auto;gap:8px;align-items:center;border-bottom:1px solid #2e3b31;padding:9px 0;font-size:11px}.dev-history-row strong{overflow:hidden;text-overflow:ellipsis}.dev-history-row small{grid-column:2 / 4;color:#839d87}
+.dev-log{margin-top:14px;border:1px solid #334b36;border-radius:9px;background:#0b120d;padding:11px}.dev-log summary{font-size:11px;color:#b4ed98;cursor:pointer}.dev-log pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:250px;overflow:auto;color:#c1d4c4;font-size:10px}
+@media(max-width:1350px){.dev-columns{grid-template-columns:1fr}.dev-side-stack{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:960px){.dev-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.dev-side-stack{grid-template-columns:1fr}}
+@media(max-width:600px){.dev-build-row{grid-template-columns:36px minmax(0,1fr);gap:7px}.dev-build-state{grid-column:2}.dev-buttons{grid-column:2}.dev-summary-cell{padding:13px}.dev-summary-cell strong{font-size:22px}.dev-panel-head{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){.nav-link,.panel{transition:none!important}}
