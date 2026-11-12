@@ -11,7 +11,10 @@ from pathlib import Path
 import tempfile
 import time
 
-from .storage import WorkspaceStore, valid_workspace
+try:
+    from .storage import WorkspaceStore, valid_workspace
+except ImportError:
+    from storage import WorkspaceStore, valid_workspace
 
 SCHEMA = "skellworld-projecthub-summary/1"
 SOURCE = "uno.skellyr.projecthub"
