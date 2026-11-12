@@ -15,9 +15,11 @@ except ImportError:
 try:
     from .storage import WorkspaceStore, storage_root
     from .world import discover
+    from .world_summary import WorldSummaryBridge
 except ImportError:
     from storage import WorkspaceStore, storage_root
     from world import discover
+    from world_summary import WorldSummaryBridge
 
 APP_VERSION = "1.4.1"
 APP_ID = "uno.skellyr.projecthub"
@@ -30,20 +32,31 @@ def assets() -> Path:
 
 
 class Bridge:
-    def __init__(self, store: WorkspaceStore | None = None):
+    def __init__(self, store: WorkspaceStore | None = None, world_bridge: WorldSummaryBridge | None = None):
         self.store = store if store is not None else WorkspaceStore()
+        self.world_bridge = world_bridge if world_bridge is not None else WorldSummaryBridge(self.store)
 
     def load_workspace(self) -> dict:
         return self.store.load()
 
     def save_workspace(self, raw: str) -> dict:
-        return self.store.save_workspace(raw)
+        result = self.store.save_workspace(raw)
+        if result.get("ok") and self.world_bridge.enabled():
+            # The opt-in summary is only aggregate counts, updated on saves.
+            self.world_bridge.publish()
+        return result
 
     def save_snapshots(self, raw: str) -> dict:
         return self.store.save_snapshots(raw)
 
     def world_status(self) -> dict:
-        return discover()
+        status = discover()
+        status["summary_sharing"] = self.world_bridge.status()
+        return status
+
+    def set_world_summary_sharing(self, enabled: bool) -> dict:
+        # Called only by an explicit user-clicked action in Project Hub.
+        return self.world_bridge.set_enabled(enabled)
 
     def choose_project_folder(self) -> str:
         import webview

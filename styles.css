@@ -20,3 +20,5 @@
 .world-project small{display:block;font-size:10px;color:#8aa18f;margin-top:5px;line-height:1.4}.world-project .small-tag{white-space:normal;text-align:center;justify-content:center}
 @media(max-width:700px){.world-list{grid-template-columns:1fr}.world-hero{align-items:flex-start}.world-hero h2{font-size:16px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+.world-share-row{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:12px 0 16px}.world-share-row strong{font-size:13px;color:var(--text,#e6f2e4)}

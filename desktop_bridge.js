@@ -122,7 +122,7 @@ const skellDesktop = {
 
 window.skellDesktop=skellDesktop;
 
-const worldInfo={online:false,loading:false,peer_count:0,peers:[],catalog:[],warning:'Not checked yet',checkedAt:null};
+const worldInfo={online:false,loading:false,peer_count:0,peers:[],catalog:[],warning:'Not checked yet',checkedAt:null,summary_sharing:{enabled:false,published:false}};
 function worldMatch(p){
   if(!worldInfo.online)return {label:'Not detected',tone:'warn',detail:'Start SkellWorld to inspect presence'};
   const repo=repoParts(p.repoUrl);
@@ -145,9 +145,29 @@ function renderWorld(){
    <div class="world-hero panel panel-pad"><div><div class="eyebrow">SKELLWORLD / LOCAL STATUS</div>
      <h2>${e(worldInfo.loading?'Checking SkellWorld…':status)}</h2><p class="micro">${e(worldInfo.warning)}<br>Checked: ${e(worldInfo.checkedAt?dateFmt(worldInfo.checkedAt):'Not yet checked')}</p></div>
      <div class="world-count">${worldInfo.online?worldInfo.peer_count:'—'}<span>LIVE INSTANCES</span></div></div>
+   <div class="panel panel-pad">
+     ${sectionHeading('World status sharing', 'Only aggregate project and CI counts are shared. No names, notes, folders or GitHub credentials.')}
+     <div class="world-share-row">
+       <strong>${worldInfo.summary_sharing?.enabled ? (worldInfo.summary_sharing?.published ? 'Sharing aggregate summary' : 'Enabled · awaiting workspace save') : 'Summary sharing is OFF'}</strong>
+       <button class="btn btn-primary" data-action="world-share-toggle">${worldInfo.summary_sharing?.enabled?'Stop sharing':'Share counts with SkellWorld'}</button>
+     </div>
+     <p class="micro">Optional, local and revocable. Project Hub writes a small summary only when you enable it, and updates it when you save your workspace. SkellWorld never gains write access.</p>
+   </div>
    <div class="panel panel-pad">${sectionHeading('Developer ecosystem', 'Per-project status from the actual SkellWorld catalog; no fabricated plugin connectivity')}
    <div class="world-list">${rows}</div></div>
    <p class="micro" style="margin-top:14px">SkellWorld SW1 is unauthenticated and informational only. Project Hub neither sends SW1 commands nor performs remote GitHub or file actions through it. The desktop integration reads only http://127.0.0.1:48674/api/status and /api/catalog. The web-only dashboard cannot access the native connection.</p>`;
+}
+async function toggleWorldSummary() {
+  if(!skellDesktop.isDesktop())return toast('World sharing requires the Windows desktop app');
+  const enable=!worldInfo.summary_sharing?.enabled;
+  if(enable && !window.confirm('Share only aggregate project and CI counts with the local SkellWorld dashboard? No project names, paths, notes or credentials will be shared.'))return;
+  try {
+    const result=await window.pywebview.api.set_world_summary_sharing(enable);
+    if(!result?.ok)return toast('World summary change failed: '+String(result?.error||'unknown'));
+    worldInfo.summary_sharing={enabled:!!result.enabled,published:!!result.published};
+    toast(enable?'SkellWorld summary sharing enabled':'SkellWorld summary sharing disabled');
+    if(state.view==='world')render(true);
+  } catch(err){toast('World sharing update failed: '+String(err))}
 }
 async function refreshWorld(){
   if(worldInfo.loading)return;
@@ -161,7 +181,8 @@ async function refreshWorld(){
     const result=await window.pywebview.api.world_status();
     Object.assign(worldInfo,{online:!!result.online,peer_count:Math.max(0,Number(result.peer_count)||0),
       peers:Array.isArray(result.peers)?result.peers:[],catalog:Array.isArray(result.catalog)?result.catalog:[],
-      warning:String(result.warning||''),checkedAt:new Date().toISOString()});
+      warning:String(result.warning||''),checkedAt:new Date().toISOString(),
+      summary_sharing:result.summary_sharing||{enabled:false,published:false}});
   }catch(err){Object.assign(worldInfo,{online:false,peer_count:0,peers:[],catalog:[],warning:String(err),checkedAt:new Date().toISOString()})}
   finally{worldInfo.loading=false;if(state.view==='world'||state.view==='detail')render(true)}
 }

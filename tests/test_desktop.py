@@ -8,6 +8,7 @@ from unittest.mock import patch
 from desktop.main import Bridge, self_test
 from desktop.storage import WorkspaceStore
 from desktop.world import discover
+from desktop.world_summary import WorldSummaryBridge
 
 
 DATA = json.dumps({"schema": 1, "projects": [{"id": "p", "checklists": {}}],
@@ -84,3 +85,52 @@ class WorldDiscoveryTests(TestCase):
             self.assertEqual(result['peer_count'], 1)
             self.assertNotIn('untrusted_command',result['peers'][0])
             self.assertNotIn('execute',result['catalog'][0])
+
+class WorldSummaryBridgeTests(TestCase):
+    def test_opt_in_count_only_and_revoke(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            store = WorkspaceStore(root / "project")
+            share = WorldSummaryBridge(store, root / "world")
+            bridge = Bridge(store, share)
+            self.assertFalse(share.enabled())
+            self.assertFalse(share.summary_path.exists())
+            self.assertTrue(bridge.save_workspace(DATA)["ok"])
+            self.assertFalse(share.summary_path.exists())  # default private
+
+            result = bridge.set_world_summary_sharing(True)
+            self.assertTrue(result["ok"])
+            self.assertTrue(result["published"])
+            exported = json.loads(share.summary_path.read_text(encoding="utf-8"))
+            self.assertEqual(exported["schema"], "skellworld-projecthub-summary/1")
+            self.assertEqual(exported["counts"]["projects"], 1)
+            self.assertEqual(exported["counts"]["ci_unknown"], 1)
+            self.assertNotIn("p", exported)
+            self.assertNotIn("folder", json.dumps(exported))
+            self.assertNotIn("repo", json.dumps(exported))
+            self.assertNotIn("checklists", json.dumps(exported))
+            self.assertLess(share.summary_path.stat().st_size, 4096)
+            self.assertTrue(bridge.set_world_summary_sharing(False)["ok"])
+            self.assertFalse(share.summary_path.exists())
+            self.assertFalse(share.enabled())
+
+    def test_updates_only_after_opted_in_save(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            store = WorkspaceStore(root / "store")
+            share = WorldSummaryBridge(store, root / "share")
+            bridge = Bridge(store, share)
+            self.assertTrue(bridge.set_world_summary_sharing(True)["ok"])
+            self.assertFalse(share.summary_path.exists())
+            self.assertTrue(bridge.save_workspace(DATA)["ok"])
+            before = json.loads(share.summary_path.read_text(encoding="utf-8"))
+            raw = json.loads(DATA)
+            raw["projects"][0]["ci"] = {"status": "failed", "label": "Build failed"}
+            raw["projects"][0]["stage"] = "Blocked"
+            self.assertTrue(bridge.save_workspace(json.dumps(raw))["ok"])
+            after = json.loads(share.summary_path.read_text(encoding="utf-8"))
+            self.assertEqual(before["counts"]["ci_unknown"], 1)
+            self.assertEqual(after["counts"]["ci_failed"], 1)
+            self.assertEqual(after["counts"]["blocked"], 1)
+            self.assertFalse(bridge.set_world_summary_sharing("false")["ok"])
+            self.assertTrue(share.enabled())
