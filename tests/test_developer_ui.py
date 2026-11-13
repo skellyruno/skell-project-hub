@@ -68,6 +68,13 @@ def run():
         })""")
         assert previous['nav']=='developer',previous
         assert previous['outline']=='solid' and previous['width']=='2px',previous
+        # Focus must be visible inside the compact viewport, not merely styled.
+        focus_box=page.locator('button[data-nav="developer"]').bounding_box()
+        assert focus_box is not None, 'Focused navigation button is not rendered'
+        viewport=page.viewport_size
+        assert focus_box['x'] >= 0 and focus_box['y'] >= 0, focus_box
+        assert focus_box['x'] + focus_box['width'] <= viewport['width'] + 1, focus_box
+        assert focus_box['y'] + focus_box['height'] <= viewport['height'] + 1, focus_box
         size=page.evaluate('({page:document.documentElement.scrollWidth,window:window.innerWidth})')
         assert size['page']<=size['window']+2,size
         browser.close()
