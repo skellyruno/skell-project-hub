@@ -151,3 +151,7 @@ Source and browser tests: `python -m unittest discover -s tests -p 'test_*.py'`,
 `python tests/smoke_test.py`, `python tests/test_desktop_ui.py`,
 `python tests/test_developer_ui.py`, `node --check dev_center.js`.
 Windows CI additionally builds and loads the actual native EXE.
+
+### v2.1 integrity and CPU improvements
+
+Build evidence now records the exact linked project root and SHA-256 of each plausible native VST3 binary. On Windows, the installer requires a PE-format binary and checks the SHA-256 before **and after** staging the copy. A previous v2.0 build record without this provenance cannot install; rebuild the linked project with v2.1 first. This is not cryptographic signing, plugin scanning, or proof that FL Studio accepts the plugin. Scheduled builds remain opt-in, and no installation happens automatically. The Developer Center polls every 12 seconds while idle, 2.5 seconds during a build, and not at all when hidden. The Windows CI now checks the exact, non-privileged SkellWorld URI startup path.

@@ -84,6 +84,18 @@ jobs:
             throw 'GUI smoke test timed out'
           }
           if ($p.ExitCode -ne 0) { throw "GUI smoke test failed $($p.ExitCode)" }
+      - name: Verify SkellWorld URI launches the real GUI safely
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'dist/Skell Project Hub/Skell Project Hub.exe'
+          $p = Start-Process -FilePath $exe -ArgumentList '--from-skellworld skellprojecthub://open --gui-smoke-test' -PassThru
+          if (-not $p.WaitForExit(45000)) {
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            throw 'SkellWorld URL window test timed out'
+          }
+          if ($p.ExitCode -ne 0) { throw "SkellWorld launch test failed $($p.ExitCode)" }
+          $bad = Start-Process -FilePath $exe -ArgumentList '--from-skellworld skellprojecthub://build' -Wait -PassThru
+          if ($bad.ExitCode -eq 0) { throw 'Rejected URL unexpectedly accepted' }
       - name: Package opt-in download repair tool
         shell: pwsh
         run: |

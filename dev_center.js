@@ -10,12 +10,16 @@ const skellDevCenter = {
   ready: false,
   lastSignature: null,
   isNative(){return Boolean(window.skellDesktop?.isDesktop?.());},
-  onView(view){
-    if(this.timer!==null){clearInterval(this.timer);this.timer=null;}
-    if(view==='developer'){
-      this.refresh();
-      if(this.isNative())this.timer=setInterval(()=>{if(!document.hidden)this.refresh()},2500);
+  pollDelayMs(){return this.model.active||this.model.queue?.length?2500:12000;},
+  scheduleRefresh(){
+    if(this.timer!==null){clearTimeout(this.timer);this.timer=null;}
+    if(state.view==='developer'&&this.isNative()&&!document.hidden){
+      this.timer=setTimeout(()=>{this.timer=null;this.refresh()},this.pollDelayMs());
     }
+  },
+  onView(view){
+    if(this.timer!==null){clearTimeout(this.timer);this.timer=null;}
+    if(view==='developer'&&!document.hidden)this.refresh();
   },
   async refresh(){
     if(this.busy || !this.isNative())return;
@@ -31,7 +35,7 @@ const skellDevCenter = {
       this.ready=true;this.lastSignature=signature;
       if(changed&&state.view==='developer' && !['SELECT','INPUT','TEXTAREA'].includes(document.activeElement?.tagName))render(true);
     }catch(error){console.warn('Builder status unavailable',error)}
-    finally{this.busy=false;}
+    finally{this.busy=false;this.scheduleRefresh();}
   },
   priorityBrief(){
     const focused=data.projects.filter(p=>p.stage!=='Released').sort(prioritySort);
@@ -51,7 +55,7 @@ const skellDevCenter = {
       const folder=m.folders?.[p.id];
       const history=m.history?.find(h=>h.project_id===p.id);
       const install=m.installs?.[p.id];
-      return `<div class="dev-build-row"><span class="dev-project-letter">${logo(p)}</span><div class="dev-build-name"><strong>${e(p.title)}</strong><small>${folder?e(folder):'Choose a local CMake project folder to enable builds'}</small></div><div class="dev-build-state">${history?`<span class="small-tag ${history.status==='compiled'?'ok':history.status==='failed'?'bad':'warn'}">${e(history.status)}</span><small>${e(history.artifact_verified?'VST3 binary found':'VST3 unverified')}</small>`:'<span class="small-tag">Not built here</span>'}</div><div class="dev-buttons"><button class="btn btn-sm btn-quiet" data-action="dev-folder" data-pid="${e(p.id)}" ${!native?'disabled':''}>Folder</button><button class="btn btn-sm btn-primary" data-action="dev-build" data-pid="${e(p.id)}" ${!native||!folder||m.active||m.queue?.length?'disabled':''}>Build</button><button class="btn btn-sm btn-quiet" data-action="dev-install" data-pid="${e(p.id)}" ${!native||history?.status!=='compiled'||!history?.artifact_verified||m.active?'disabled':''}>Install</button>${install?.status==='installed'&&install.backup?`<button class="btn btn-sm btn-quiet" data-action="dev-rollback" data-pid="${e(p.id)}">Rollback</button>`:''}</div></div>`;
+      return `<div class="dev-build-row"><span class="dev-project-letter">${logo(p)}</span><div class="dev-build-name"><strong>${e(p.title)}</strong><small>${folder?e(folder):'Choose a local CMake project folder to enable builds'}</small></div><div class="dev-build-state">${history?`<span class="small-tag ${history.status==='compiled'?'ok':history.status==='failed'?'bad':'warn'}">${e(history.status)}</span><small>${e(history.artifact_verified?'Binary format + SHA-256 recorded':'VST3 unverified')}</small>`:'<span class="small-tag">Not built here</span>'}</div><div class="dev-buttons"><button class="btn btn-sm btn-quiet" data-action="dev-folder" data-pid="${e(p.id)}" ${!native?'disabled':''}>Folder</button><button class="btn btn-sm btn-primary" data-action="dev-build" data-pid="${e(p.id)}" ${!native||!folder||m.active||m.queue?.length?'disabled':''}>Build</button><button class="btn btn-sm btn-quiet" data-action="dev-install" data-pid="${e(p.id)}" ${!native||history?.status!=='compiled'||!history?.artifact_verified||m.active?'disabled':''}>Install</button>${install?.status==='installed'&&install.backup?`<button class="btn btn-sm btn-quiet" data-action="dev-rollback" data-pid="${e(p.id)}">Rollback</button>`:''}</div></div>`;
     }).join('');
     const history=(m.history||[]).slice(0,8).map(h=>`<div class="dev-history-row"><span class="small-tag ${h.status==='compiled'?'ok':h.status==='failed'?'bad':'warn'}">${e(h.status)}</span><strong>${e(pName(h.project_id))}</strong><span>${e(String(h.duration_seconds??'—'))}s</span><small>${e(h.artifact_verified?'Verified VST3 binary':'Binary unverified')} · ${e(h.ctest_exit===0?'CTest passed':h.ctest_exit===null?'CTest not run':'CTest failed')}</small></div>`).join('')||'<p class="micro">No local build results yet.</p>';
     return `${pageHeader('SKELL / DEVELOPER MODE','Developer Command Center',
@@ -135,4 +139,10 @@ document.addEventListener('click',event=>{
   if(btn)skellDevCenter.action(btn);
   const project=event.target.closest('[data-dev-project]');
   if(project)setView('detail',project.dataset.devProject);
+});
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    if(skellDevCenter.timer!==null){clearTimeout(skellDevCenter.timer);skellDevCenter.timer=null;}
+  }else if(state.view==='developer')skellDevCenter.refresh();
 });

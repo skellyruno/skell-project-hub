@@ -1,6 +1,7 @@
 """Real local CMake build, state recovery, safe defaults and cancellation."""
 from __future__ import annotations
 import json
+import hashlib
 import tempfile
 import time
 from pathlib import Path
@@ -8,6 +9,15 @@ from unittest import TestCase
 
 from desktop.builder import BuildManager, find_vst3
 from desktop.launcher import valid_launch_url
+
+
+def fake_pe_binary(fill=b'new'):
+    """A syntactically recognizable PE header for integrity tests, not a real DLL."""
+    data=bytearray((fill * (8192//len(fill)+1))[:8192])
+    data[:2]=b'MZ'
+    data[0x3c:0x40]=(0x80).to_bytes(4,'little')
+    data[0x80:0x84]=b'PE\0\0'
+    return bytes(data)
 
 
 def sample_project(parent):
@@ -85,6 +95,8 @@ class BuildManagerTests(TestCase):
             file.write_bytes(b'abcd')
             self.assertFalse(find_vst3(root))
             file.write_bytes(b'\0'*8192)
+            self.assertFalse(find_vst3(root))
+            file.write_bytes(fake_pe_binary())
             self.assertEqual(len(find_vst3(root)),1)
 
     def test_only_fixed_launcher_url_is_allowed(self):
@@ -101,25 +113,56 @@ class InstallerTests(TestCase):
             source=sample_project(tmp)
             created=source/'.skell-build'/'MyPlugin.vst3'/'Contents'/'x86_64-win'
             created.mkdir(parents=True)
-            (created/'MyPlugin.vst3').write_bytes(b'new' * 2048)
+            (created/'MyPlugin.vst3').write_bytes(fake_pe_binary(b'new'))
             destination=root/'installed'
             old=destination/'MyPlugin.vst3'/'Contents'/'x86_64-win'
             old.mkdir(parents=True)
-            (old/'MyPlugin.vst3').write_bytes(b'old' * 2048)
+            (old/'MyPlugin.vst3').write_bytes(fake_pe_binary(b'old'))
             b=BuildManager(root/'state')
             try:
                 self.assertTrue(b.link_folder('my-plugin',str(source))['ok'])
                 b._history=[{'project_id':'my-plugin','status':'compiled','artifact_verified':True,
-                             'vst3_binaries':['MyPlugin.vst3/Contents/x86_64-win/MyPlugin.vst3']}]
+                             'vst3_binaries':['MyPlugin.vst3/Contents/x86_64-win/MyPlugin.vst3'],
+                             'source_folder':str(source.resolve()),
+                             'sha256':{'MyPlugin.vst3/Contents/x86_64-win/MyPlugin.vst3':hashlib.sha256(fake_pe_binary(b'new')).hexdigest()}}]
                 self.assertFalse(b.install_artifact('my-plugin',str(destination),False)['ok'])
                 installed=b.install_artifact('my-plugin',str(destination),True)
                 self.assertTrue(installed['ok'], installed)
                 self.assertTrue(installed['backup_saved'])
-                self.assertEqual((old/'MyPlugin.vst3').read_bytes(),b'new' * 2048)
+                self.assertEqual((old/'MyPlugin.vst3').read_bytes(),fake_pe_binary(b'new'))
                 self.assertFalse(b.rollback_install('my-plugin',False)['ok'])
                 restored=b.rollback_install('my-plugin',True)
                 self.assertTrue(restored['ok'],restored)
-                self.assertEqual((old/'MyPlugin.vst3').read_bytes(),b'old' * 2048)
+                self.assertEqual((old/'MyPlugin.vst3').read_bytes(),fake_pe_binary(b'old'))
                 self.assertTrue(Path(restored['newer_copy']).exists())
+            finally:
+                b.shutdown()
+
+    def test_modified_binary_or_relinked_folder_is_not_installed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            source=sample_project(tmp)
+            binary=source/'.skell-build'/'Proof.vst3'/'Contents'/'x86_64-win'/'Proof.vst3'
+            binary.parent.mkdir(parents=True)
+            original=fake_pe_binary(b'first')
+            binary.write_bytes(original)
+            target=root/'installed'
+            target.mkdir()
+            b=BuildManager(root/'state')
+            try:
+                self.assertTrue(b.link_folder('p1',str(source))['ok'])
+                name='Proof.vst3/Contents/x86_64-win/Proof.vst3'
+                b._history=[{'project_id':'p1','status':'compiled','artifact_verified':True,
+                             'source_folder':str(source.resolve()),'vst3_binaries':[name],
+                             'sha256':{name:hashlib.sha256(original).hexdigest()}}]
+                binary.write_bytes(fake_pe_binary(b'changed'))
+                self.assertIn('changed',b.install_artifact('p1',str(target),True)['error'])
+                self.assertFalse((target/'Proof.vst3').exists())
+                binary.write_bytes(original)
+                other=Path(tmp)/'other'
+                other.mkdir()
+                (other/'CMakeLists.txt').write_text('project(New)')
+                self.assertTrue(b.link_folder('p1',str(other))['ok'])
+                self.assertIn('folder changed',b.install_artifact('p1',str(target),True)['error'])
             finally:
                 b.shutdown()

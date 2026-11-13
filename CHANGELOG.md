@@ -42,3 +42,12 @@
 - Optional Windows current-user launch URI for SkellWorld Developer Mode; never sends SW1 commands.
 - Daily priority brief derived from recorded project and CI status.
 - Preserves v1.4.1 Windows startup/CLR checks and newer consented count-only SkellWorld sharing.
+
+## v2.1 — Binary provenance and low-overhead monitoring (2026-11-13)
+
+- Detect executable image headers (Windows PE, ELF, or Mach-O) instead of accepting any 4 KB file named *.vst3. Windows VST3 installation additionally requires a PE image.
+- Keep the resolved source folder and SHA-256 evidence with each build; reject changed, relocated, or older unverified artifacts before installing.
+- Verify the staged copy again before replacing any installed VST3. Existing backup and rollback confirmation remain unchanged.
+- Refuse symlinked .skell-build directories and folder relinking during active builds.
+- Reduce idle Developer Center refreshes from 2.5 to 12 seconds, refresh every 2.5 seconds during builds, and suspend polling while hidden.
+- Add Windows CI test for actual SkellWorld URL launch and invalid URL rejection. Windows GUI checks still do not replace testing on the user's PC.

@@ -34,6 +34,10 @@ def run():
         page.get_by_role('heading',name='Developer Command Center').wait_for()
         page.get_by_role('heading',name='Windows Builder').wait_for()
         page.wait_for_function('skellDevCenter.ready===true')
+        assert page.evaluate('skellDevCenter.pollDelayMs()') == 12000
+        page.evaluate('skellDevCenter.model.active={project_id:"test",step:"compile"}')
+        assert page.evaluate('skellDevCenter.pollDelayMs()') == 2500
+        page.evaluate('skellDevCenter.model.active=null')
         page.on('dialog',lambda d:d.accept())
         page.locator('[data-action=dev-build]:not([disabled])').first.click(timeout=5000)
         page.wait_for_function('window.__calls.some(x=>x[0]==="start")')
