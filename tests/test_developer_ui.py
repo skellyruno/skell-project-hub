@@ -21,6 +21,7 @@ def run():
             world_status:async()=>({online:false,peers:[],catalog:[]}),
             builder_status:async()=>({active:null,queue:[],folders:{[data.projects[0].id]:'/tmp/mock'},history:[],logs:[],schedule:{enabled:false,interval_minutes:120,project_id:data.projects[0].id,with_tests:true},available:true}),
             launcher_status:async()=>({supported:true,registered:false}),
+            diagnostics_capture:async()=>({ok:true,cpu_percent_all_cores:0.7,end_working_set_mb:62,peak_working_set_mb:67,scope:'mock',warning:'approximate'}),
             builder_start:async(ids,tests)=>{window.__calls.push(['start',ids,tests]);return {ok:true}},
             builder_schedule:async(id,minutes,tests,enabled)=>{window.__calls.push(['schedule',id,minutes,tests,enabled]);return {ok:true}},
             launcher_manage:async(enabled)=>{window.__calls.push(['launcher',enabled]);return {ok:true}},
@@ -44,6 +45,9 @@ def run():
         assert page.evaluate('window.__calls.find(x=>x[0]==="start")[1].length')==1
         page.locator('[data-action="dev-schedule-enable"]').click()
         page.wait_for_function('window.__calls.some(x=>x[0]==="schedule")')
+        page.locator('[data-action="dev-measure"]').click()
+        page.get_by_text('CPU / all cores',exact=True).wait_for()
+        assert '62 MB' in page.locator('.dev-perf-stats').inner_text()
         page.locator('[data-action="dev-register"]').click()
         page.wait_for_function('window.__calls.some(x=>x[0]==="launcher")')
         assert not errors,errors

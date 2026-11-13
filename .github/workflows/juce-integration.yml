@@ -10,8 +10,8 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: skell-hub-juce-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: skell-hub-juce-\${{ github.ref }}
+  cancel-in-progress: \${{ github.ref != 'refs/heads/main' }}
 jobs:
   juce-build:
     runs-on: windows-2022
@@ -31,7 +31,7 @@ jobs:
       - name: Build and verify a genuine JUCE VST3
         shell: pwsh
         env:
-          SKELL_JUCE_TEMPLATE_DIR: ${{ github.workspace }}/juce-template
+          SKELL_JUCE_TEMPLATE_DIR: \${{ github.workspace }}/juce-template
         run: |
           if ((git -C juce-template rev-parse HEAD).Trim() -ne '3b624f818a34ac93253f34634e16a2d8b5cfeb1f') {
             throw 'Template checkout differs from pinned commit'
