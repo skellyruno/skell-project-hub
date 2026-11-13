@@ -8,10 +8,19 @@ import os
 from pathlib import Path
 import shutil
 import tempfile
+import time
 import unittest
 
 from desktop.builder import BuildManager, sha256_file, vst3_binary_kind
-from tests.test_builder import wait_until_done
+
+def wait_until_done(manager, timeout=55):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        result = manager.status()
+        if not result['active'] and not result['queue'] and result['history']:
+            return result
+        time.sleep(.1)
+    raise AssertionError('Windows CMake proof build timed out')
 
 
 @unittest.skipUnless(os.name == 'nt' and shutil.which('cmake'), 'Requires Windows and CMake')
