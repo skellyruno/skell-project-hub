@@ -47,8 +47,39 @@ def safe_root(folder: Path):
     return path
 
 
+def vst3_binary_kind(file: Path):
+    """Cheap header sanity check; not a code-signature or DAW host test."""
+    try:
+        if file.is_symlink() or not file.is_file() or file.stat().st_size < 4096:
+            return None
+        with file.open('rb') as stream:
+            head = stream.read(64)
+            if head[:2] == b'MZ' and len(head) >= 64:
+                offset = int.from_bytes(head[0x3c:0x40], 'little')
+                if 64 <= offset <= 4096:
+                    stream.seek(offset)
+                    if stream.read(4) == b'PE\0\0':
+                        return 'PE'
+            if head[:4] == b'\x7fELF':
+                return 'ELF'
+            if head[:4] in (b'\xfe\xed\xfa\xce', b'\xce\xfa\xed\xfe',
+                            b'\xfe\xed\xfa\xcf', b'\xcf\xfa\xed\xfe'):
+                return 'Mach-O'
+    except OSError:
+        return None
+    return None
+
+
+def sha256_file(file: Path) -> str:
+    digest = hashlib.sha256()
+    with file.open('rb') as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def find_vst3(build: Path):
-    """Return actual nonempty VST3 binaries; a directory alone is not proof."""
+    """Return plausible non-symlink VST3 binaries, not merely named folders."""
     found = []
     if not build.is_dir():
         return found
@@ -59,7 +90,7 @@ def find_vst3(build: Path):
             file = base_path / name
             if name.lower().endswith('.vst3'):
                 try:
-                    if file.stat().st_size >= 4096:
+                    if vst3_binary_kind(file):
                         found.append(str(file.relative_to(build)))
                 except OSError:
                     pass
@@ -134,6 +165,8 @@ class BuildManager:
         try:
             path = safe_root(Path(folder))
             with self._lock:
+                if self._active or self._queue:
+                    return {'ok': False, 'error': 'Cannot change linked folders while building'}
                 self._folders[project_id] = str(path)
                 self._save()
             return {'ok': True, 'folder': str(path)}
@@ -245,8 +278,12 @@ class BuildManager:
                 self._active = {'project_id': pid, 'step': 'configure', 'started_at': utc_now()}
             start = time.monotonic()
             build = root / '.skell-build'
-            # No cleaning, deleting, or touching the project's other build directories.
-            configure = self._run_command([self._cmd, '-S', str(root), '-B', str(build),
+            # Never allow a pre-existing build-directory symlink to redirect writes.
+            if build.is_symlink():
+                self._log('Refusing symlinked .skell-build directory')
+                configure = -1
+            else:
+                configure = self._run_command([self._cmd, '-S', str(root), '-B', str(build),
                                            '-DCMAKE_BUILD_TYPE=Release'], root)
             compiled = None
             tested = None
@@ -264,13 +301,9 @@ class BuildManager:
             artifacts = find_vst3(build) if compiled == 0 else []
             signatures = {}
             for relative in artifacts:
-                digest = hashlib.sha256()
                 file = build / relative
                 try:
-                    with file.open('rb') as input_file:
-                        for chunk in iter(lambda: input_file.read(1024*1024), b''):
-                            digest.update(chunk)
-                    signatures[relative] = digest.hexdigest()
+                    signatures[relative] = sha256_file(file)
                 except OSError:
                     self._log('Could not hash artifact: ' + relative)
             status = ('cancelled' if self._cancel or self._stop.is_set() else
@@ -281,7 +314,8 @@ class BuildManager:
                       'configure_exit': configure, 'compile_exit': compiled,
                       'ctest_exit': tested, 'vst3_binaries': artifacts,
                       'artifact_verified': bool(artifacts) and len(signatures) == len(artifacts),
-                      'sha256': signatures, 'log_tail': list(self._logs[-40:]),
+                      'sha256': signatures, 'source_folder': str(root.resolve()),
+                      'log_tail': list(self._logs[-40:]),
                       'note': 'Compilation is not FL Studio or audio-quality verification'}
             with self._lock:
                 self._history.insert(0, record)
@@ -309,6 +343,8 @@ class BuildManager:
             binaries = latest.get('vst3_binaries', [])
             if not isinstance(binaries, list) or not binaries:
                 return {'ok': False, 'error': 'Build record has no verified binary'}
+            if latest.get('source_folder') != str(source_root.parent.resolve()):
+                return {'ok': False, 'error': 'Project folder changed since the build; rebuild before installing'}
             part = Path(binaries[0])
             if part.is_absolute() or '..' in part.parts:
                 return {'ok': False, 'error': 'Invalid artifact path'}
@@ -319,8 +355,18 @@ class BuildManager:
             bundle = source_root.joinpath(*part.parts[:bundle_path+1]).resolve()
             if not bundle.exists() or not bundle.is_relative_to(source_root.resolve()):
                 return {'ok': False, 'error': 'Build output is missing or outside the project'}
-            if any(p.is_symlink() for p in ([bundle] if bundle.is_file() else [bundle,*bundle.rglob('*')])):
+            if source_root.is_symlink() or any(p.is_symlink() for p in ([bundle] if bundle.is_file() else [bundle,*bundle.rglob('*')])):
                 return {'ok': False, 'error': 'Refusing to install bundle with symlinks'}
+            binary = source_root / part
+            expected = latest.get('sha256', {}).get(binaries[0])
+            if not isinstance(expected, str) or len(expected) != 64:
+                return {'ok': False, 'error': 'No build-time SHA-256 evidence; rebuild before installing'}
+            try:
+                if (vst3_binary_kind(binary) is None or (os.name == 'nt' and vst3_binary_kind(binary) != 'PE')
+                        or sha256_file(binary) != expected):
+                    return {'ok': False, 'error': 'VST3 changed or is invalid since build; rebuild before installing'}
+            except OSError:
+                return {'ok': False, 'error': 'VST3 unavailable; rebuild before installing'}
             target_dir = Path(destination).resolve()
             if (not target_dir.is_dir() or target_dir == Path(target_dir.anchor)
                     or target_dir == Path.home() or target_dir.is_relative_to(source_root.parent)):
@@ -340,8 +386,9 @@ class BuildManager:
                     binary_in_copy = staged.joinpath(*part.parts[bundle_path+1:])
                 else:
                     binary_in_copy = staged
-                if not binary_in_copy.is_file() or binary_in_copy.stat().st_size < 4096:
-                    raise OSError('Staged VST3 binary is invalid or incomplete')
+                if (vst3_binary_kind(binary_in_copy) is None or
+                        sha256_file(binary_in_copy) != expected):
+                    raise OSError('Staged VST3 hash or binary format differs from the verified build')
                 prior = target.exists()
                 if prior:
                     os.replace(target, backup)

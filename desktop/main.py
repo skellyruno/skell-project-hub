@@ -25,7 +25,7 @@ except ImportError:
     from builder import BuildManager
     from launcher import register, registration_state, valid_launch_url
 
-APP_VERSION = "2.0.0"
+APP_VERSION = "2.1.0"
 APP_ID = "uno.skellyr.projecthub"
 
 
