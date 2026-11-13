@@ -358,7 +358,7 @@ class BuildManager:
             if source_root.is_symlink() or any(p.is_symlink() for p in ([bundle] if bundle.is_file() else [bundle,*bundle.rglob('*')])):
                 return {'ok': False, 'error': 'Refusing to install bundle with symlinks'}
             binary = source_root / part
-            expected = latest.get('sha256', {}).get(str(part).replace('\\','/'))
+            expected = latest.get('sha256', {}).get(binaries[0])
             if not isinstance(expected, str) or len(expected) != 64:
                 return {'ok': False, 'error': 'No build-time SHA-256 evidence; rebuild before installing'}
             try:
