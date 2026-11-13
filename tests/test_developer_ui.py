@@ -59,6 +59,15 @@ def run():
         })""")
         assert focused['nav']=='world',focused
         assert focused['outline']=='solid' and focused['width']=='2px',focused
+        # Reverse keyboard navigation should restore focus without losing the ring.
+        page.keyboard.press('Shift+Tab')
+        previous=page.evaluate("""() => ({
+            nav: document.activeElement?.getAttribute('data-nav'),
+            outline: getComputedStyle(document.activeElement).outlineStyle,
+            width: getComputedStyle(document.activeElement).outlineWidth
+        })""")
+        assert previous['nav']=='developer',previous
+        assert previous['outline']=='solid' and previous['width']=='2px',previous
         size=page.evaluate('({page:document.documentElement.scrollWidth,window:window.innerWidth})')
         assert size['page']<=size['window']+2,size
         browser.close()
