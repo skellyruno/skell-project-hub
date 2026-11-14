@@ -81,6 +81,17 @@ def run():
         assert focus_box['y'] + focus_box['height'] <= viewport['height'] + 1, focus_box
         size=page.evaluate('({page:document.documentElement.scrollWidth,window:window.innerWidth})')
         assert size['page']<=size['window']+2,size
+        # Exercise the supported minimum width as well as the 390px compact layout.
+        page.set_viewport_size({'width':320,'height':640})
+        page.wait_for_timeout(200)
+        for nav_name in ('developer', 'world'):
+            page.locator(f'button[data-nav="{nav_name}"]').focus()
+            box=page.locator(f'button[data-nav="{nav_name}"]').bounding_box()
+            assert box is not None, f'{nav_name} button missing at 320px'
+            assert box['x'] >= -1 and box['x'] + box['width'] <= 321, (nav_name, box)
+        narrow=page.evaluate('({page:document.documentElement.scrollWidth,window:window.innerWidth})')
+        assert narrow['page'] <= narrow['window'] + 2, narrow
+        assert not errors, errors
         browser.close()
 
 
