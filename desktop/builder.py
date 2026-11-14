@@ -58,8 +58,16 @@ def vst3_binary_kind(file: Path):
                 offset = int.from_bytes(head[0x3c:0x40], 'little')
                 if 64 <= offset <= 4096:
                     stream.seek(offset)
+                    # Windows VST3 modules must be x64 PE32+ images, not just
+                    # arbitrary files with a DOS/PE signature or 32-bit DLLs.
                     if stream.read(4) == b'PE\0\0':
-                        return 'PE'
+                        coff = stream.read(20)
+                        if len(coff) == 20:
+                            machine = int.from_bytes(coff[:2], 'little')
+                            optional_size = int.from_bytes(coff[16:18], 'little')
+                            if machine == 0x8664 and optional_size >= 2:
+                                if stream.read(2) == b'\x0b\x02':
+                                    return 'PE'
             if head[:4] == b'\x7fELF':
                 return 'ELF'
             if head[:4] in (b'\xfe\xed\xfa\xce', b'\xce\xfa\xed\xfe',
