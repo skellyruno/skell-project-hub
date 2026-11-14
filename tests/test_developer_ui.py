@@ -59,6 +59,10 @@ def run():
         })""")
         assert focused['nav']=='world',focused
         assert focused['outline']=='solid' and focused['width']=='2px',focused
+        # The forward-focused item must also be inside the viewport after rail scrolling.
+        world_box=page.locator('button[data-nav="world"]').bounding_box()
+        assert world_box is not None, 'Forward-focused navigation button is not rendered'
+        assert world_box['x'] >= -1 and world_box['x'] + world_box['width'] <= 391, world_box
         # Reverse keyboard navigation should restore focus without losing the ring.
         page.keyboard.press('Shift+Tab')
         previous=page.evaluate("""() => ({
