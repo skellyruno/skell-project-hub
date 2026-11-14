@@ -49,6 +49,32 @@ def run():
         assert not errors,errors
         page.set_viewport_size({'width':390,'height':780})
         page.wait_for_timeout(200)
+        # Keyboard navigation must remain legible on compact layouts.
+        page.locator('button[data-nav="developer"]').focus()
+        page.keyboard.press('Tab')
+        focused=page.evaluate("""() => ({
+            nav: document.activeElement?.getAttribute('data-nav'),
+            outline: getComputedStyle(document.activeElement).outlineStyle,
+            width: getComputedStyle(document.activeElement).outlineWidth
+        })""")
+        assert focused['nav']=='world',focused
+        assert focused['outline']=='solid' and focused['width']=='2px',focused
+        # Reverse keyboard navigation should restore focus without losing the ring.
+        page.keyboard.press('Shift+Tab')
+        previous=page.evaluate("""() => ({
+            nav: document.activeElement?.getAttribute('data-nav'),
+            outline: getComputedStyle(document.activeElement).outlineStyle,
+            width: getComputedStyle(document.activeElement).outlineWidth
+        })""")
+        assert previous['nav']=='developer',previous
+        assert previous['outline']=='solid' and previous['width']=='2px',previous
+        # Focus must be visible inside the compact viewport, not merely styled.
+        focus_box=page.locator('button[data-nav="developer"]').bounding_box()
+        assert focus_box is not None, 'Focused navigation button is not rendered'
+        viewport=page.viewport_size
+        assert focus_box['x'] >= 0 and focus_box['y'] >= 0, focus_box
+        assert focus_box['x'] + focus_box['width'] <= viewport['width'] + 1, focus_box
+        assert focus_box['y'] + focus_box['height'] <= viewport['height'] + 1, focus_box
         size=page.evaluate('({page:document.documentElement.scrollWidth,window:window.innerWidth})')
         assert size['page']<=size['window']+2,size
         browser.close()

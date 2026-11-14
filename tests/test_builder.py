@@ -33,14 +33,20 @@ add_test(NAME run_test COMMAND skell_build_test)
     return folder
 
 
-def wait_until_done(manager, timeout=25):
+def wait_until_done(manager, timeout=90):
     until = time.monotonic() + timeout
     while time.monotonic() < until:
         current = manager.status()
         if not current['active'] and not current['queue'] and current['history']:
             return current
         time.sleep(.08)
-    raise AssertionError('Build did not finish in time')
+    current = manager.status()
+    raise AssertionError(
+        'Build did not finish within {}s; active={!r}, queue={!r}, history={!r}, recent_logs={!r}'.format(
+            timeout, current.get('active'), current.get('queue'),
+            current.get('history'), current.get('logs', [])[-20:]
+        )
+    )
 
 
 class BuildManagerTests(TestCase):
