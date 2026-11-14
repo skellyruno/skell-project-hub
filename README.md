@@ -155,3 +155,9 @@ Windows CI additionally builds and loads the actual native EXE.
 ### v2.1 integrity and CPU improvements
 
 Build evidence now records the exact linked project root and SHA-256 of each plausible native VST3 binary. On Windows, the installer requires a PE-format binary and checks the SHA-256 before **and after** staging the copy. A previous v2.0 build record without this provenance cannot install; rebuild the linked project with v2.1 first. This is not cryptographic signing, plugin scanning, or proof that FL Studio accepts the plugin. Scheduled builds remain opt-in, and no installation happens automatically. The Developer Center polls every 12 seconds while idle, 2.5 seconds during a build, and not at all when hidden. The Windows CI now checks the exact, non-privileged SkellWorld URI startup path.
+
+### v2.2: Local resource diagnostics and real JUCE builder integration
+
+Under **Developer Center → Windows resource diagnostics**, select **Measure 5 seconds** to sample the Project Hub process and accessible WebView2 descendants. Values show CPU normalized over all logical cores, observed working-set memory, and approximate peak sampled working set. These figures may exclude detached/protected renderer processes and do not measure FL Studio or a full-day CPU baseline. No permanent performance poller is enabled.
+
+A separate GitHub Actions workflow, **Project Hub Real JUCE Integration**, checks out immutable SkellCore Quickstart source (pinned SHA), compiles a real JUCE 8.0.12 VST3 through the Project Hub builder, checks its Windows PE header and SHA-256, and verifies installation into a throwaway directory. This does not install any plugin into the runner's DAW folders or claim host validation.

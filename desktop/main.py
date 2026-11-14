@@ -18,14 +18,16 @@ try:
     from .world_summary import WorldSummaryBridge
     from .builder import BuildManager
     from .launcher import register, registration_state, valid_launch_url
+    from .performance import measure
 except ImportError:
     from storage import WorkspaceStore, storage_root
     from world import discover
     from world_summary import WorldSummaryBridge
     from builder import BuildManager
     from launcher import register, registration_state, valid_launch_url
+    from performance import measure
 
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.2.0"
 APP_ID = "uno.skellyr.projecthub"
 
 
@@ -53,6 +55,10 @@ class Bridge:
 
     def builder_status(self) -> dict:
         return self.builder.status()
+
+    def diagnostics_capture(self, seconds: int = 5) -> dict:
+        # Called on demand through the native JS bridge, never a resident poller.
+        return measure(seconds)
 
     def builder_link_folder(self, project_id: str) -> dict:
         # Never accept arbitrary JavaScript-provided folder paths.
