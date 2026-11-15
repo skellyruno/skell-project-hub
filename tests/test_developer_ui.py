@@ -53,8 +53,57 @@ def run():
         assert not errors,errors
         page.set_viewport_size({'width':390,'height':780})
         page.wait_for_timeout(200)
+        captures=ROOT/'artifacts'/'ui'
+        captures.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(captures/'projecthub-390px.png'),full_page=True)
+        # Keyboard navigation must remain legible on compact layouts.
+        page.locator('button[data-nav="developer"]').focus()
+        page.keyboard.press('Tab')
+        focused=page.evaluate("""() => ({
+            nav: document.activeElement?.getAttribute('data-nav'),
+            outline: getComputedStyle(document.activeElement).outlineStyle,
+            width: getComputedStyle(document.activeElement).outlineWidth
+        })""")
+        assert focused['nav']=='world',focused
+        assert focused['outline']=='solid' and focused['width']=='2px',focused
+        # The forward-focused item must also be inside the viewport after rail scrolling.
+        world_box=page.locator('button[data-nav="world"]').bounding_box()
+        assert world_box is not None, 'Forward-focused navigation button is not rendered'
+        assert world_box['x'] >= -1 and world_box['x'] + world_box['width'] <= 391, world_box
+        # Reverse keyboard navigation should restore focus without losing the ring.
+        page.keyboard.press('Shift+Tab')
+        previous=page.evaluate("""() => ({
+            nav: document.activeElement?.getAttribute('data-nav'),
+            outline: getComputedStyle(document.activeElement).outlineStyle,
+            width: getComputedStyle(document.activeElement).outlineWidth
+        })""")
+        assert previous['nav']=='developer',previous
+        assert previous['outline']=='solid' and previous['width']=='2px',previous
+        # Focus must be visible inside the compact viewport, not merely styled.
+        focus_box=page.locator('button[data-nav="developer"]').bounding_box()
+        assert focus_box is not None, 'Focused navigation button is not rendered'
+        viewport=page.viewport_size
+        assert focus_box['x'] >= 0 and focus_box['y'] >= 0, focus_box
+        assert focus_box['x'] + focus_box['width'] <= viewport['width'] + 1, focus_box
+        assert focus_box['y'] + focus_box['height'] <= viewport['height'] + 1, focus_box
         size=page.evaluate('({page:document.documentElement.scrollWidth,window:window.innerWidth})')
         assert size['page']<=size['window']+2,size
+        # Exercise the supported minimum width as well as the 390px compact layout.
+        page.set_viewport_size({'width':320,'height':640})
+        page.wait_for_timeout(200)
+        for nav_name in ('developer', 'world'):
+            page.locator(f'button[data-nav="{nav_name}"]').focus()
+            box=page.locator(f'button[data-nav="{nav_name}"]').bounding_box()
+            assert box is not None, f'{nav_name} button missing at 320px'
+            assert box['x'] >= -1 and box['x'] + box['width'] <= 321, (nav_name, box)
+        narrow=page.evaluate('({page:document.documentElement.scrollWidth,window:window.innerWidth})')
+        assert narrow['page'] <= narrow['window'] + 2, narrow
+        assert not errors, errors
+        page.screenshot(path=str(captures/'projecthub-320px.png'),full_page=True)
+        page.set_viewport_size({'width':1060,'height':760})
+        page.locator('button[data-nav="developer"]').click()
+        page.wait_for_timeout(150)
+        page.screenshot(path=str(captures/'projecthub-desktop.png'),full_page=True)
         browser.close()
 
 

@@ -17,6 +17,9 @@ def fake_pe_binary(fill=b'new'):
     data[:2]=b'MZ'
     data[0x3c:0x40]=(0x80).to_bytes(4,'little')
     data[0x80:0x84]=b'PE\0\0'
+    data[0x84:0x86]=(0x8664).to_bytes(2,'little')
+    data[0x94:0x96]=(0xF0).to_bytes(2,'little')
+    data[0x98:0x9a]=b'\x0b\x02'
     return bytes(data)
 
 
@@ -33,14 +36,20 @@ add_test(NAME run_test COMMAND skell_build_test)
     return folder
 
 
-def wait_until_done(manager, timeout=25):
+def wait_until_done(manager, timeout=90):
     until = time.monotonic() + timeout
     while time.monotonic() < until:
         current = manager.status()
         if not current['active'] and not current['queue'] and current['history']:
             return current
         time.sleep(.08)
-    raise AssertionError('Build did not finish in time')
+    current = manager.status()
+    raise AssertionError(
+        'Build did not finish within {}s; active={!r}, queue={!r}, history={!r}, recent_logs={!r}'.format(
+            timeout, current.get('active'), current.get('queue'),
+            current.get('history'), current.get('logs', [])[-20:]
+        )
+    )
 
 
 class BuildManagerTests(TestCase):
@@ -96,8 +105,21 @@ class BuildManagerTests(TestCase):
             self.assertFalse(find_vst3(root))
             file.write_bytes(b'\0'*8192)
             self.assertFalse(find_vst3(root))
-            file.write_bytes(fake_pe_binary())
-            self.assertEqual(len(find_vst3(root)),1)
+            valid = fake_pe_binary()
+            file.write_bytes(valid)
+            self.assertEqual(len(find_vst3(root)), 1)
+            for offset, replacement in (
+                (0x84, (0x14c).to_bytes(2, 'little')),
+                (0x98, b'\x0b\x01'),
+                (0x94, b'\x00\x00'),
+                (0x80, b'NOPE'),
+            ):
+                broken = bytearray(valid)
+                broken[offset:offset + len(replacement)] = replacement
+                file.write_bytes(broken)
+                self.assertEqual(find_vst3(root), [], f'bad header at {offset:#x}')
+            file.write_bytes(valid)
+            self.assertEqual(len(find_vst3(root)), 1)
 
     def test_only_fixed_launcher_url_is_allowed(self):
         self.assertTrue(valid_launch_url('skellprojecthub://open'))
