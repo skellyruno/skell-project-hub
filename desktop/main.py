@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import sys
 import traceback
+import time
 
 try:
     from .runtime_check import probe_pythonnet
@@ -18,14 +19,16 @@ try:
     from .world_summary import WorldSummaryBridge
     from .builder import BuildManager
     from .launcher import register, registration_state, valid_launch_url
+    from .performance import measure
 except ImportError:
     from storage import WorkspaceStore, storage_root
     from world import discover
     from world_summary import WorldSummaryBridge
     from builder import BuildManager
     from launcher import register, registration_state, valid_launch_url
+    from performance import measure
 
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.3.0"
 APP_ID = "uno.skellyr.projecthub"
 
 
@@ -53,6 +56,10 @@ class Bridge:
 
     def builder_status(self) -> dict:
         return self.builder.status()
+
+    def diagnostics_capture(self, seconds: int = 5) -> dict:
+        # Called on demand through the native JS bridge, never a resident poller.
+        return measure(seconds)
 
     def builder_link_folder(self, project_id: str) -> dict:
         # Never accept arbitrary JavaScript-provided folder paths.
@@ -175,7 +182,7 @@ def startup_failure(message: str, *, interactive: bool) -> None:
             pass
 
 
-def run_gui(*, smoke: bool = False) -> int:
+def run_gui(*, smoke: bool = False, profile: bool = False) -> int:
     diagnosis = probe_pythonnet()
     if not diagnosis['ok']:
         startup_failure(diagnosis['message'], interactive=not smoke)
@@ -186,6 +193,7 @@ def run_gui(*, smoke: bool = False) -> int:
         bridge = Bridge()
         root = storage_root()
         root.mkdir(parents=True, exist_ok=True)
+        started_at = time.perf_counter()
         window = webview.create_window(
             'SKELL Project Hub', str(assets() / 'index.html'), js_api=bridge,
             width=1060, height=730, min_size=(830, 580),
@@ -198,6 +206,27 @@ def run_gui(*, smoke: bool = False) -> int:
                     result['error'] = 'Timed out waiting for WebView2 document'
                 elif window.evaluate_js('Boolean(document.querySelector("[data-nav=developer]"))'):
                     result['ok'] = True
+                    if profile:
+                        startup_seconds = round(time.perf_counter() - started_at, 3)
+                        # Allow WebView2 and descendants to settle after the first page paint.
+                        time.sleep(3.0)
+                        diagnostic = measure(5)
+                        report = {
+                            "schema": "skell-projecthub-ci-profile/1",
+                            "startup_seconds": startup_seconds,
+                            "warmup_seconds": 3.0,
+                            "diagnostic": diagnostic,
+                            "note": "Windows GitHub runner only; no claim about your own PC or FL Studio."
+                        }
+                        try:
+                            (root / 'profile-smoke.json').write_text(
+                                json.dumps(report, indent=2), encoding='utf-8')
+                        except OSError as write_error:
+                            result['ok'] = False
+                            result['error'] = 'Could not record CI process profile: ' + str(write_error)
+                        if not diagnostic.get('ok'):
+                            result['ok'] = False
+                            result['error'] = diagnostic.get('error', 'Process measurement failed')
                 else:
                     result['error'] = 'Project Hub navigation is missing'
             except Exception as error:
@@ -228,6 +257,7 @@ def main() -> int:
     parser.add_argument("--self-test", action="store_true", help="Check bundle assets and persistence")
     parser.add_argument("--runtime-probe", action="store_true", help="Verify the packaged Windows .NET bridge")
     parser.add_argument("--gui-smoke-test", action="store_true", help="Open and validate the real WebView2 window")
+    parser.add_argument("--profile-smoke", action="store_true", help="Capture a short real Windows WebView2 process profile")
     parser.add_argument("--from-skellworld", nargs="?", const="", default=None)
     args = parser.parse_args()
     if args.self_test:
@@ -243,7 +273,8 @@ def main() -> int:
     if not (assets() / 'index.html').is_file():
         startup_failure('Project Hub assets are missing', interactive=not args.gui_smoke_test)
         return 1
-    return run_gui(smoke=args.gui_smoke_test)
+    return run_gui(smoke=args.gui_smoke_test or args.profile_smoke,
+                   profile=args.profile_smoke)
 
 
 if __name__ == "__main__":
