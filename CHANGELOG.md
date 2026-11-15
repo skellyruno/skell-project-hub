@@ -51,3 +51,11 @@
 - Refuse symlinked .skell-build directories and folder relinking during active builds.
 - Reduce idle Developer Center refreshes from 2.5 to 12 seconds, refresh every 2.5 seconds during builds, and suspend polling while hidden.
 - Add Windows CI test for actual SkellWorld URL launch and invalid URL rejection. Windows GUI checks still do not replace testing on the user's PC.
+
+## v2.2 — Resource diagnostics and real JUCE integration (2026-11-13)
+
+- Added an on-demand Windows process-family CPU and memory sampler, with no idle background telemetry thread.
+- Added Developer Center measurement UI and mock integration tests.
+- Added a separate pinned SkellCore JUCE quickstart Windows integration build, verifying actual PE-format VST3 output and hash.
+- Added per-user launcher registration and cleanup tests on Windows runners.
+- User data and SkellWorld's informational-only SW1 boundary remain unchanged.

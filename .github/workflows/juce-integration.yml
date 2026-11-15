@@ -1,0 +1,39 @@
+name: Project Hub Real JUCE Integration
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'dev/**']
+    paths:
+      - 'desktop/builder.py'
+      - 'tests/juce_integration_smoke.py'
+      - '.github/workflows/juce-integration.yml'
+permissions:
+  contents: read
+concurrency:
+  group: skell-hub-juce-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+jobs:
+  juce-build:
+    runs-on: windows-2022
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check out immutable SkellCore Quickstart
+        uses: actions/checkout@v5
+        with:
+          repository: skellyruno/skellcore-vst-template
+          ref: 3b624f818a34ac93253f34634e16a2d8b5cfeb1f
+          path: juce-template
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Build and verify a genuine JUCE VST3
+        shell: pwsh
+        env:
+          SKELL_JUCE_TEMPLATE_DIR: ${{ github.workspace }}/juce-template
+        run: |
+          if ((git -C juce-template rev-parse HEAD).Trim() -ne '3b624f818a34ac93253f34634e16a2d8b5cfeb1f') {
+            throw 'Template checkout differs from pinned commit'
+          }
+          python -m tests.juce_integration_smoke

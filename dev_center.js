@@ -9,6 +9,8 @@ const skellDevCenter = {
   busy: false,
   ready: false,
   lastSignature: null,
+  diagnostic: null,
+  measuring: false,
   isNative(){return Boolean(window.skellDesktop?.isDesktop?.());},
   pollDelayMs(){return this.model.active||this.model.queue?.length?2500:12000;},
   scheduleRefresh(){
@@ -36,6 +38,14 @@ const skellDevCenter = {
       if(changed&&state.view==='developer' && !['SELECT','INPUT','TEXTAREA'].includes(document.activeElement?.tagName))render(true);
     }catch(error){console.warn('Builder status unavailable',error)}
     finally{this.busy=false;this.scheduleRefresh();}
+  },
+  renderDiagnostics(){
+    const native=this.isNative(), m=this.diagnostic;
+    const detail=m?(m.ok
+      ? '<div class="dev-perf-stats"><div><strong>'+e(String(m.cpu_percent_all_cores))+'%</strong><small>CPU / all cores</small></div><div><strong>'+e(String(m.end_working_set_mb))+' MB</strong><small>Working set</small></div><div><strong>'+e(String(m.peak_working_set_mb))+' MB</strong><small>Peak sampled</small></div></div><p class="micro">'+e(m.scope)+' · '+e(m.warning)+'</p>'
+      : '<p class="micro">'+e(m.error||'Resource measurement unavailable')+'</p>')
+      : '<p class="micro">No measurements yet.</p>';
+    return '<section class="panel panel-pad"><div class="eyebrow">PERFORMANCE / ON DEMAND</div><h2>Windows resource diagnostics</h2><p class="micro">Measure Project Hub and accessible WebView2 child processes. No monitoring runs when idle. Results are approximate and not FL Studio CPU measurements.</p><div class="dev-actions"><button class="btn btn-primary" data-action="dev-measure" '+(!native||this.measuring?'disabled':'')+'>'+(this.measuring?'Measuring…':'Measure 5 seconds')+'</button></div>'+detail+'</section>';
   },
   priorityBrief(){
     const focused=data.projects.filter(p=>p.stage!=='Released').sort(prioritySort);
@@ -85,6 +95,7 @@ const skellDevCenter = {
             <div class="dev-actions"><button class="btn btn-primary" data-action="dev-schedule-enable" ${!native||!selected?'disabled':''}>${schedule.enabled?'Update schedule':'Enable schedule'}</button><button class="btn btn-quiet" data-action="dev-schedule-disable" ${!schedule.enabled?'disabled':''}>Disable</button></div>
             <p class="micro">${schedule.enabled?'Next build: '+e(new Date((schedule.next_due||0)*1000).toLocaleString()):'Scheduled compiling is off by default.'}</p>
           </section>
+          ${this.renderDiagnostics()}
           <section class="panel panel-pad"><div class="eyebrow">SKELLWORLD / DEVELOPER MODE</div><h2>Launch integration</h2><p class="micro">Register a Windows per-user shortcut after confirming. SkellWorld opens this app via a normal operating-system URL prompt, not SW1.</p>
           <span class="small-tag ${this.launcher.registered?'ok':'warn'}">${this.launcher.registered?'Registered on this PC':'Not registered'}</span>
           <div class="dev-actions"><button class="btn btn-primary" data-action="dev-register" ${!native||!this.launcher.supported?'disabled':''}>Register launcher</button><button class="btn btn-quiet" data-action="dev-unregister" ${!this.launcher.registered?'disabled':''}>Unregister</button></div>
@@ -113,6 +124,17 @@ const skellDevCenter = {
       }else if(act==='dev-rollback'){
         if(!confirm(`Restore the previous VST3 for ${pName(el.dataset.pid)}? The newer installed version will be retained as a backup.`))return;
         result=await api.builder_rollback(el.dataset.pid,true);
+      }else if(act==='dev-measure'){
+        this.measuring=true;render(true);
+        try{
+          this.diagnostic=await api.diagnostics_capture(5);
+          toast(this.diagnostic?.ok?'Performance sample captured':this.diagnostic?.error||'Measurement unavailable');
+        }catch(error){
+          this.diagnostic={ok:false,error:String(error)};
+        }finally{
+          this.measuring=false;render(true);
+        }
+        return;
       }else if(act==='dev-cancel'){
         if(!confirm('Cancel the running build and clear the remaining queue?'))return;
         result=await api.builder_cancel();
