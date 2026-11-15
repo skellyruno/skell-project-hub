@@ -12,6 +12,16 @@ def run():
         page=browser.new_page(viewport={'width':1080,'height':800})
         errors=[]
         page.on('pageerror',lambda error:errors.append(str(error)))
+        # Playwright's about:blank origin does not have stable localStorage.
+        # Match WebView2's persistent profile with an in-memory, test-only store.
+        page.evaluate("""() => {
+            const cache = new Map();
+            Object.defineProperty(window,'localStorage',{configurable:true,value:{
+                getItem:k=>cache.has(k)?cache.get(k):null,
+                setItem:(k,v)=>cache.set(k,String(v)),
+                removeItem:k=>cache.delete(k)
+            }});
+        }""")
         page.set_content((ROOT/'skelly_project_hub.html').read_text(encoding='utf-8'),wait_until='domcontentloaded')
         page.evaluate('''() => {
           window.__calls=[];
@@ -31,6 +41,10 @@ def run():
           window.dispatchEvent(new Event('pywebviewready'));
         }''')
         page.wait_for_function('window.skellDesktop.ready===true')
+        # Fresh AppData state should persist normally, not claim a disk failure.
+        page.wait_for_function('skellDesktop.diskStatus==="saved"')
+        assert "pending retry" not in page.locator('#saveIndicator').inner_text().lower()
+
         page.locator('button[data-nav="developer"]').click()
         page.get_by_role('heading',name='Developer Command Center').wait_for()
         page.get_by_role('heading',name='Windows Builder').wait_for()
@@ -55,6 +69,11 @@ def run():
         page.wait_for_timeout(200)
         captures=ROOT/'artifacts'/'ui'
         captures.mkdir(parents=True, exist_ok=True)
+        # Hide only the test's transient operation toast for legible QA captures.
+        page.evaluate("""() => {
+            const toast=document.getElementById('toast');
+            if(toast)toast.classList.remove('show');
+        }""")
         page.screenshot(path=str(captures/'projecthub-390px.png'),full_page=True)
         # Keyboard navigation must remain legible on compact layouts.
         page.locator('button[data-nav="developer"]').focus()
