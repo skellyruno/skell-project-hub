@@ -48,6 +48,7 @@ def run():
         page.locator('button[data-nav="developer"]').click()
         page.get_by_role('heading',name='Developer Command Center').wait_for()
         page.get_by_role('heading',name='Windows Builder').wait_for()
+        assert page.get_by_role('region', name='Local build projects').count()==1
         page.wait_for_function('skellDevCenter.ready===true')
         assert page.evaluate('skellDevCenter.pollDelayMs()') == 12000
         page.evaluate('skellDevCenter.model.active={project_id:"test",step:"compile"}')
@@ -74,6 +75,7 @@ def run():
             const toast=document.getElementById('toast');
             if(toast)toast.classList.remove('show');
         }""")
+        page.wait_for_timeout(300)  # let toast opacity transition settle
         page.screenshot(path=str(captures/'projecthub-390px.png'),full_page=True)
         # Keyboard navigation must remain legible on compact layouts.
         page.locator('button[data-nav="developer"]').focus()

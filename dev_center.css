@@ -33,3 +33,7 @@
 .dev-perf-stats strong{display:block;color:#baff8d;font-size:17px;line-height:1.1}
 .dev-perf-stats small{display:block;color:#a0b4a3;font-size:10px;margin-top:7px}
 @media(max-width:410px){.dev-perf-stats{grid-template-columns:1fr}}
+
+/* Keyboard-readable, visually discoverable native build list at compact widths. */
+.dev-build-list{scrollbar-width:thin;scrollbar-color:#527b47 #111d16}
+.dev-build-list:focus-visible{outline:2px solid #baff8d;outline-offset:2px}

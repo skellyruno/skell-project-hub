@@ -81,7 +81,8 @@ const skellDevCenter = {
         <section class="panel panel-pad dev-builder-panel"><div class="dev-panel-head"><div><div class="eyebrow">BUILD SYSTEM / LOCAL ONLY</div><h2>Windows Builder</h2><p class="micro">CMake Release builds, 2 compile jobs, cancellable queue, CTest when configured.</p></div><span class="small-tag ${m.active?'warn':'ok'}">${e(status)}</span></div>
         ${native?`<div class="dev-actions"><button class="btn btn-primary" data-action="dev-build-all" ${!linked.length||m.active||m.queue?.length?'disabled':''}>Build all linked (${linked.length})</button><button class="btn btn-danger" data-action="dev-cancel" ${!m.active&&!m.queue?.length?'disabled':''}>Cancel queue</button></div>`:
           '<div class="instruction">Builder requires the Windows desktop application. Browser mode remains read-only.</div>'}
-        <div class="dev-build-list">${buildRows}</div>
+        <div class="dev-build-list" role="region" aria-label="Local build projects" tabindex="0">${buildRows}</div>
+        <p class="micro">Scroll the list to see other projects. Choose a trusted folder before building.</p>
         <div class="dev-panel-head"><h3>Latest native build evidence</h3><span class="micro">Compile ≠ host validation</span></div>
         <div class="dev-history">${history}</div>
         <details class="dev-log"><summary>Live build output (${m.logs?.length||0} lines)</summary><pre id="devBuildLogs">${e((m.logs||[]).join('\n')||'No build output yet.')}</pre></details>
