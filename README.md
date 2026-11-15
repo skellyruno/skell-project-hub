@@ -161,3 +161,9 @@ Build evidence now records the exact linked project root and SHA-256 of each pla
 Under **Developer Center → Windows resource diagnostics**, select **Measure 5 seconds** to sample the Project Hub process and accessible WebView2 descendants. Values show CPU normalized over all logical cores, observed working-set memory, and approximate peak sampled working set. These figures may exclude detached/protected renderer processes and do not measure FL Studio or a full-day CPU baseline. No permanent performance poller is enabled.
 
 A separate GitHub Actions workflow, **Project Hub Real JUCE Integration**, checks out immutable SkellCore Quickstart source (pinned SHA), compiles a real JUCE 8.0.12 VST3 through the Project Hub builder, checks its Windows PE header and SHA-256, and verifies installation into a throwaway directory. This does not install any plugin into the runner's DAW folders or claim host validation.
+
+### v2.3 verified release workflow
+
+The consolidated candidate includes a pinned Skell Spacer source build test in `.github/workflows/spacer-integration.yml`. It compiles through the Hub's real CMake BuildManager, validates x64 PE format and SHA-256 hashes, and tests explicit install/rollback **only inside a disposable CI directory**. This is not an FL Studio host or sound-quality test.
+
+Windows CI captures actual Playwright-rendered browser screenshots of the Developer Center at desktop, 390px, and 320px viewport sizes using stubbed native calls, plus a separate five-second, on-demand profile of the real packaged WebView2 window. Resource results reflect GitHub runner hardware and may exclude detached renderer processes. No permanent telemetry, background updater or unapproved installation is introduced. The earlier v2.1/V2.2 project data store remains compatible.

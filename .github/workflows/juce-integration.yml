@@ -11,7 +11,7 @@ permissions:
   contents: read
 concurrency:
   group: skell-hub-juce-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main') }}
 jobs:
   juce-build:
     runs-on: windows-2022

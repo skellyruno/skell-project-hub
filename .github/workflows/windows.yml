@@ -6,6 +6,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: hub-windows-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main') }}
 jobs:
   build:
     runs-on: windows-2022
@@ -40,6 +43,13 @@ jobs:
         run: python tests/test_desktop_ui.py
       - name: Developer Center browser integration
         run: python tests/test_developer_ui.py
+      - name: Upload actual browser-rendered desktop and compact screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: Project-Hub-UI-Inspection
+          path: artifacts/ui/*.png
+          if-no-files-found: error
+          retention-days: 14
       - name: Build Windows desktop app
         run: python -m PyInstaller --clean --noconfirm skell_project_hub.spec
       - name: Executable self-test
@@ -96,6 +106,29 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "SkellWorld launch test failed $($p.ExitCode)" }
           $bad = Start-Process -FilePath $exe -ArgumentList '--from-skellworld skellprojecthub://build' -Wait -PassThru
           if ($bad.ExitCode -eq 0) { throw 'Rejected URL unexpectedly accepted' }
+      - name: Profile idle Windows WebView2 process family
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'dist/Skell Project Hub/Skell Project Hub.exe'
+          $profile = Join-Path $env:APPDATA 'SKELL/ProjectHub/profile-smoke.json'
+          Remove-Item -LiteralPath $profile -ErrorAction SilentlyContinue
+          $p = Start-Process -FilePath $exe -ArgumentList '--profile-smoke' -PassThru
+          if (-not $p.WaitForExit(45000)) {
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            throw 'Idle CPU/memory profile timed out'
+          }
+          if ($p.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $profile)) { throw 'Idle resource profile failed' }
+          $data = Get-Content -LiteralPath $profile -Raw | ConvertFrom-Json
+          if (-not $data.diagnostic.ok -or $data.diagnostic.end_working_set_mb -le 0) { throw 'Invalid process sample' }
+          New-Item -ItemType Directory -Path artifacts/qa -Force | Out-Null
+          Copy-Item -LiteralPath $profile -Destination artifacts/qa/windows-process-profile.json
+          Write-Host ("Startup: " + $data.startup_seconds + "s, CPU: " + $data.diagnostic.cpu_percent_all_cores + "% of all cores, working set: " + $data.diagnostic.end_working_set_mb + " MB")
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Project-Hub-Windows-Resource-Evidence
+          path: artifacts/qa/windows-process-profile.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Package opt-in download repair tool
         shell: pwsh
         run: |

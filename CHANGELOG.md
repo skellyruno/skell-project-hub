@@ -59,3 +59,11 @@
 - Added a separate pinned SkellCore JUCE quickstart Windows integration build, verifying actual PE-format VST3 output and hash.
 - Added per-user launcher registration and cleanup tests on Windows runners.
 - User data and SkellWorld's informational-only SW1 boundary remain unchanged.
+
+## v2.3 — Consolidated release verification (2026-11-15)
+
+- Consolidated 64-bit VST3 architecture validation, Windows CMake test reliability, compact keyboard navigation and existing on-demand resource diagnostics.
+- Added pinned real Skell Spacer Windows VST3 compilation through Project Hub BuildManager, PE/SHA-256 checks, and temporary-folder installation plus rollback proof. Real FL Studio loading and audio quality remain separate.
+- Capture browser-rendered Developer Center desktop/390px/320px screenshots on Windows CI for visual inspection.
+- Added CI-only WebView2 process-family five-second CPU and working-set evidence with measured startup duration; hardware-specific estimates are not advertised as user-PC benchmarks.
+- Cancel superseded development checks while protecting main/manual workflow runs. Project data stays untouched.
