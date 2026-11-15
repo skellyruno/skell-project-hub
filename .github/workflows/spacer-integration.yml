@@ -43,3 +43,18 @@ jobs:
             throw "Unexpected Skell Spacer revision: $pinned"
           }
           python -m tests.spacer_integration_smoke
+
+      - name: Package verified Skell Spacer VST3 as QA-only artifact
+        shell: pwsh
+        run: |
+          $out = Join-Path $PWD 'real-spacer/.skell-build'
+          $bundle = Get-ChildItem -Path $out -Directory -Recurse -Filter '*.vst3' | Select-Object -First 1
+          if (-not $bundle) { throw 'Verified Skell Spacer bundle missing' }
+          Compress-Archive -LiteralPath $bundle.FullName -DestinationPath Skell-Spacer-VST3-QA-Only.zip -Force
+          if (-not (Test-Path Skell-Spacer-VST3-QA-Only.zip)) { throw 'QA ZIP missing' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Skell-Spacer-VST3-QA-Only
+          path: Skell-Spacer-VST3-QA-Only.zip
+          if-no-files-found: error
+          retention-days: 7

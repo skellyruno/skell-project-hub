@@ -120,6 +120,7 @@ jobs:
           if ($p.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $profile)) { throw 'Idle resource profile failed' }
           $data = Get-Content -LiteralPath $profile -Raw | ConvertFrom-Json
           if (-not $data.diagnostic.ok -or $data.diagnostic.end_working_set_mb -le 0) { throw 'Invalid process sample' }
+          if ($data.warmup_seconds -lt 3.0) { throw 'Idle sample lacks startup warm-up' }
           New-Item -ItemType Directory -Path artifacts/qa -Force | Out-Null
           Copy-Item -LiteralPath $profile -Destination artifacts/qa/windows-process-profile.json
           Write-Host ("Startup: " + $data.startup_seconds + "s, CPU: " + $data.diagnostic.cpu_percent_all_cores + "% of all cores, working set: " + $data.diagnostic.end_working_set_mb + " MB")

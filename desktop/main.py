@@ -208,10 +208,13 @@ def run_gui(*, smoke: bool = False, profile: bool = False) -> int:
                     result['ok'] = True
                     if profile:
                         startup_seconds = round(time.perf_counter() - started_at, 3)
+                        # Allow WebView2 and descendants to settle after the first page paint.
+                        time.sleep(3.0)
                         diagnostic = measure(5)
                         report = {
                             "schema": "skell-projecthub-ci-profile/1",
                             "startup_seconds": startup_seconds,
+                            "warmup_seconds": 3.0,
                             "diagnostic": diagnostic,
                             "note": "Windows GitHub runner only; no claim about your own PC or FL Studio."
                         }
