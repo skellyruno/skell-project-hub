@@ -48,8 +48,15 @@ def run():
         # CI pass badges must use the green status treatment defined by styles.css.
         passed_badge = page.locator('.status-pill.status-passed').first
         assert passed_badge.count() > 0, 'Seeded overview has no passed CI badge'
-        passed_color = passed_badge.evaluate('(el) => getComputedStyle(el).color')
-        assert passed_color == 'rgb(188, 243, 93)', passed_color
+        passed_colors = passed_badge.evaluate("""el => {
+          const probe = document.createElement('span');
+          probe.style.color = 'var(--green)';
+          document.body.appendChild(probe);
+          const expected = getComputedStyle(probe).color;
+          probe.remove();
+          return {actual: getComputedStyle(el).color, expected};
+        }""")
+        assert passed_colors['actual'] == passed_colors['expected'], passed_colors
         captures = ROOT/'artifacts'/'ui'
         captures.mkdir(parents=True, exist_ok=True)
         page.screenshot(path=str(captures/'projecthub-overview-desktop.png'), full_page=True)
