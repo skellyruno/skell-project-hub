@@ -84,6 +84,10 @@ def run():
         assert not errors,errors
         page.set_viewport_size({'width':390,'height':780})
         page.wait_for_timeout(200)
+        nav_box=page.locator('#nav').bounding_box()
+        active_box=page.locator('button[data-nav="developer"]').bounding_box()
+        assert nav_box is not None and active_box is not None, 'Compact navigation geometry unavailable'
+        assert active_box['x'] >= nav_box['x']-1 and active_box['x']+active_box['width'] <= nav_box['x']+nav_box['width']+1, active_box
         captures=ROOT/'artifacts'/'ui'
         captures.mkdir(parents=True, exist_ok=True)
         # Hide only the test's transient operation toast for legible QA captures.
