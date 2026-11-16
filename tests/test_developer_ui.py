@@ -45,6 +45,15 @@ def run():
         page.wait_for_function('skellDesktop.diskStatus==="saved"')
         assert "pending retry" not in page.locator('#saveIndicator').inner_text().lower()
 
+        # CI pass badges must use the green status treatment defined by styles.css.
+        passed_badge = page.locator('.status-pill.status-passed').first
+        assert passed_badge.count() > 0, 'Seeded overview has no passed CI badge'
+        passed_color = passed_badge.evaluate('(el) => getComputedStyle(el).color')
+        assert passed_color == 'rgb(188, 243, 93)', passed_color
+        captures = ROOT/'artifacts'/'ui'
+        captures.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(captures/'projecthub-overview-desktop.png'), full_page=True)
+
         page.locator('button[data-nav="developer"]').click()
         page.get_by_role('heading',name='Developer Command Center').wait_for()
         page.get_by_role('heading',name='Windows Builder').wait_for()
