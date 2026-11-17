@@ -67,6 +67,17 @@ def run():
         page.get_by_role('heading',name='Developer Command Center').wait_for()
         assert page.locator('#nav button[data-nav="developer"][aria-current="page"]').count() == 1
         assert page.locator('#nav button[data-nav="overview"][aria-current="page"]').count() == 0
+        # Only the primary navigation may announce the current page.
+        # Content buttons that also navigate must not be mislabeled as the current page.
+        page.evaluate("""() => {
+            const probe=document.createElement('button');
+            probe.id='external-nav-probe';
+            probe.dataset.nav='developer';
+            document.body.appendChild(probe);
+            render();
+        }""")
+        assert page.locator('#external-nav-probe').get_attribute('aria-current') is None
+        page.locator('#external-nav-probe').evaluate('(el) => el.remove()')
         page.get_by_role('heading',name='Windows Builder').wait_for()
         assert page.get_by_role('region', name='Local build projects').count()==1
         page.wait_for_function('skellDevCenter.ready===true')
