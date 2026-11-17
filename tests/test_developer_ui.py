@@ -44,6 +44,8 @@ def run():
         # Fresh AppData state should persist normally, not claim a disk failure.
         page.wait_for_function('skellDesktop.diskStatus==="saved"')
         assert "pending retry" not in page.locator('#saveIndicator').inner_text().lower()
+        assert page.locator('#nav button[data-nav="overview"][aria-current="page"]').count() == 1
+        assert page.locator('#nav button[data-nav="developer"][aria-current="page"]').count() == 0
 
         # CI pass badges must use the green status treatment defined by styles.css.
         passed_badge = page.locator('.status-pill.status-passed').first
@@ -63,6 +65,8 @@ def run():
 
         page.locator('button[data-nav="developer"]').click()
         page.get_by_role('heading',name='Developer Command Center').wait_for()
+        assert page.locator('#nav button[data-nav="developer"][aria-current="page"]').count() == 1
+        assert page.locator('#nav button[data-nav="overview"][aria-current="page"]').count() == 0
         page.get_by_role('heading',name='Windows Builder').wait_for()
         assert page.get_by_role('region', name='Local build projects').count()==1
         page.wait_for_function('skellDevCenter.ready===true')
