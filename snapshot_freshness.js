@@ -1,7 +1,7 @@
 'use strict';
 
 function snapshotFreshness(seedVersion, now = new Date()) {
-  const match = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(String(seedVersion || ''));
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(seedVersion || ''));
   if (!match) {
     return {
       state: 'unknown',
