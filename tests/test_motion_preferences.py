@@ -27,13 +27,22 @@ def run():
             scroll: getComputedStyle(document.documentElement).scrollBehavior,
             cardTransition: getComputedStyle(document.querySelector("#card")).transitionDuration,
             cardTransform: getComputedStyle(document.querySelector("#card")).transform,
-            toastTransition: getComputedStyle(document.querySelector("#toast")).transitionDuration
+            toastTransition: getComputedStyle(document.querySelector("#toast")).transitionDuration,
+            animationDuration: getComputedStyle(document.querySelector("#card")).animationDuration,
+            animationDelay: getComputedStyle(document.querySelector("#card")).animationDelay,
+            animationIterations: getComputedStyle(document.querySelector("#card")).animationIterationCount,
+            transitionDelay: getComputedStyle(document.querySelector("#card")).transitionDelay
         })""")
         assert reduced["preference"] is True, reduced
         assert reduced["scroll"] == "auto", reduced
         assert reduced["cardTransition"] == "1e-05s", reduced
         assert reduced["toastTransition"] == "1e-05s", reduced
+        assert reduced["animationDuration"] == "1e-05s", reduced
+        assert reduced["animationDelay"] == "0s", reduced
+        assert reduced["animationIterations"] == "1", reduced
+        assert reduced["transitionDelay"] == "0s", reduced
         assert reduced["cardTransform"] == "none", reduced
+        assert css.count("prefers-reduced-motion") == 1, "Reduced-motion rules should stay consolidated"
 
         # The normal Skelly hover treatment remains intact when motion is allowed.
         page.emulate_media(reduced_motion="no-preference")
