@@ -36,6 +36,24 @@ with sync_playwright() as pl:
     page.locator('#projectSearch').fill('skell-deesser-vst')
     page.wait_for_function("document.querySelectorAll('.project-card').length === 1")
     assert page.locator('.project-card').first.get_attribute('data-project') == 'deesser'
+    # Capture the exact search surface introduced by this PR at desktop and compact widths.
+    captures=ROOT/'artifacts'/'ui'
+    captures.mkdir(parents=True, exist_ok=True)
+    grid=page.locator('.project-grid')
+    desktop_columns=page.evaluate("getComputedStyle(document.querySelector('.project-grid')).gridTemplateColumns.split(' ').length")
+    assert desktop_columns == 3, desktop_columns
+    desktop_card=page.locator('.project-card').first.bounding_box()
+    assert desktop_card and desktop_card['x'] >= 0 and desktop_card['x'] + desktop_card['width'] <= 1441, desktop_card
+    page.screenshot(path=str(captures/'project-search-desktop.png'),full_page=True)
+    page.set_viewport_size({'width':390,'height':844})
+    page.wait_for_timeout(100)
+    mobile_geometry=page.evaluate("({scroll:document.documentElement.scrollWidth,viewport:window.innerWidth,columns:getComputedStyle(document.querySelector('.project-grid')).gridTemplateColumns.split(' ').length})")
+    assert mobile_geometry['scroll'] <= mobile_geometry['viewport'] + 2, mobile_geometry
+    assert mobile_geometry['columns'] == 1, mobile_geometry
+    mobile_card=page.locator('.project-card').first.bounding_box()
+    assert mobile_card and mobile_card['x'] >= 0 and mobile_card['x'] + mobile_card['width'] <= 391, mobile_card
+    page.screenshot(path=str(captures/'project-search-390px.png'),full_page=True)
+    page.set_viewport_size({'width':1440,'height':960})
     page.locator('#projectSearch').fill('')
     page.wait_for_function("document.querySelectorAll('.project-card').length > 1")
     page.keyboard.press('Control+k')
