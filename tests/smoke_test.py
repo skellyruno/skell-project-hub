@@ -31,6 +31,18 @@ with sync_playwright() as pl:
     page.set_content(HTML,wait_until='domcontentloaded')
     assert page.locator('h1').first.inner_text()=='Overview'
     assert page.locator('.automation-strip').count()==1
+    # Repository slugs must be searchable in both the project list and Quick Jump.
+    page.locator('button[data-nav="projects"]').first.click()
+    page.locator('#projectSearch').fill('skell-deesser-vst')
+    page.wait_for_function("document.querySelectorAll('.project-card').length === 1")
+    assert page.locator('.project-card').first.get_attribute('data-project') == 'deesser'
+    page.locator('#projectSearch').fill('')
+    page.wait_for_function("document.querySelectorAll('.project-card').length > 1")
+    page.keyboard.press('Control+k')
+    page.locator('#paletteSearch').fill('skell-deesser-vst')
+    page.wait_for_function("document.querySelectorAll('.palette-result').length === 1")
+    assert page.locator('.palette-result').first.get_attribute('data-palette-project') == 'deesser'
+    page.keyboard.press('Escape')
     page.locator('button[data-nav="settings"]').last.click()
     assert page.locator('h1').first.inner_text()=='Data & settings'
     assert page.locator('[data-auto-setting="enabled"]').is_checked()
