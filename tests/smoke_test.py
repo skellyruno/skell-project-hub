@@ -36,10 +36,9 @@ with sync_playwright() as pl:
     page.locator('#projectSearch').fill('skell-deesser-vst')
     page.wait_for_function("document.querySelectorAll('.project-card').length === 1")
     assert page.locator('.project-card').first.get_attribute('data-project') == 'deesser'
-    # Capture the exact search surface introduced by this PR at desktop and compact widths.
+    # Capture and verify the exact search surface introduced by this PR.
     captures=ROOT/'artifacts'/'ui'
     captures.mkdir(parents=True, exist_ok=True)
-    grid=page.locator('.project-grid')
     desktop_columns=page.evaluate("getComputedStyle(document.querySelector('.project-grid')).gridTemplateColumns.split(' ').length")
     assert desktop_columns == 3, desktop_columns
     desktop_card=page.locator('.project-card').first.bounding_box()
@@ -47,12 +46,21 @@ with sync_playwright() as pl:
     page.screenshot(path=str(captures/'project-search-desktop.png'),full_page=True)
     page.set_viewport_size({'width':390,'height':844})
     page.wait_for_timeout(100)
-    mobile_geometry=page.evaluate("({scroll:document.documentElement.scrollWidth,viewport:window.innerWidth,columns:getComputedStyle(document.querySelector('.project-grid')).gridTemplateColumns.split(' ').length})")
+    mobile_geometry=page.evaluate("({scroll:document.documentElement.scrollWidth,viewport:window.innerWidth,columns:getComputedStyle(document.querySelector('.project-grid')).gridTemplateColumns.split(' ').length,filterWidth:document.querySelector('#projectFilter').getBoundingClientRect().width,sortWidth:document.querySelector('#projectSort').getBoundingClientRect().width,searchWidth:document.querySelector('#projectSearch').getBoundingClientRect().width})")
     assert mobile_geometry['scroll'] <= mobile_geometry['viewport'] + 2, mobile_geometry
     assert mobile_geometry['columns'] == 1, mobile_geometry
+    assert mobile_geometry['filterWidth'] >= 150 and mobile_geometry['sortWidth'] >= 150, mobile_geometry
+    assert mobile_geometry['searchWidth'] >= 330, mobile_geometry
     mobile_card=page.locator('.project-card').first.bounding_box()
     assert mobile_card and mobile_card['x'] >= 0 and mobile_card['x'] + mobile_card['width'] <= 391, mobile_card
     page.screenshot(path=str(captures/'project-search-390px.png'),full_page=True)
+    page.set_viewport_size({'width':320,'height':720})
+    page.wait_for_timeout(100)
+    narrow_geometry=page.evaluate("({scroll:document.documentElement.scrollWidth,viewport:window.innerWidth,filterWidth:document.querySelector('#projectFilter').getBoundingClientRect().width,sortWidth:document.querySelector('#projectSort').getBoundingClientRect().width,searchWidth:document.querySelector('#projectSearch').getBoundingClientRect().width})")
+    assert narrow_geometry['scroll'] <= narrow_geometry['viewport'] + 2, narrow_geometry
+    assert narrow_geometry['filterWidth'] >= 260 and narrow_geometry['sortWidth'] >= 260, narrow_geometry
+    assert narrow_geometry['searchWidth'] >= 260, narrow_geometry
+    page.screenshot(path=str(captures/'project-search-320px.png'),full_page=True)
     page.set_viewport_size({'width':1440,'height':960})
     page.locator('#projectSearch').fill('')
     page.wait_for_function("document.querySelectorAll('.project-card').length > 1")

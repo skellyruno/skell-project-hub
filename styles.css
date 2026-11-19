@@ -22,3 +22,13 @@
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 
 .world-share-row{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:12px 0 16px}.world-share-row strong{font-size:13px;color:var(--text,#e6f2e4)}
+
+/* Keep the All projects search controls readable on compact screens. */
+@media(max-width:600px){
+  .project-toolbar .search-wrap{flex:1 1 100%;min-width:0}
+  .project-toolbar select{flex:1 1 calc(50% - 5px);min-width:0;max-width:none}
+  .project-toolbar .count-note{flex:1 1 100%}
+}
+@media(max-width:360px){
+  .project-toolbar select{flex-basis:100%}
+}
