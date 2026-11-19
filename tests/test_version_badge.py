@@ -10,7 +10,7 @@ class VersionBadgeTests(unittest.TestCase):
     def test_sidebar_badge_matches_native_app_version(self):
         native_source = (ROOT / "desktop" / "main.py").read_text(encoding="utf-8")
         version_match = re.search(
-            r'^APP_VERSION\\s*=\\s*"([0-9]+\\.[0-9]+\\.[0-9]+)"',
+            r'^APP_VERSION\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"',
             native_source,
             re.MULTILINE,
         )
