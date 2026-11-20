@@ -92,6 +92,26 @@ with sync_playwright() as pl:
     geometry=page.evaluate('''() => ({scroll:document.documentElement.scrollWidth, viewport:window.innerWidth})''')
     print('Mobile geometry:',geometry)
     assert geometry['scroll']<=geometry['viewport']+2,geometry
+    # Every selected item in the compact horizontal navigation rail must remain visible.
+    for target in ['developer','settings']:
+        page.locator(f'button[data-nav="{target}"]').first.click()
+        page.wait_for_timeout(220)
+        nav_geometry=page.evaluate('''() => {
+          const rail=document.querySelector('.navigation');
+          const active=rail?.querySelector('.nav-link.is-active');
+          if(!rail||!active)return {missing:true};
+          const railRect=rail.getBoundingClientRect();
+          const activeRect=active.getBoundingClientRect();
+          return {scrollWidth:rail.scrollWidth,clientWidth:rail.clientWidth,scrollLeft:rail.scrollLeft,
+            activeLeft:activeRect.left,activeRight:activeRect.right,railLeft:railRect.left,railRight:railRect.right,
+            fullyVisible:activeRect.left>=railRect.left-1&&activeRect.right<=railRect.right+1};
+        }''')
+        print(f'Compact navigation {target}:',nav_geometry)
+        assert not nav_geometry.get('missing'),nav_geometry
+        assert nav_geometry['scrollWidth']>nav_geometry['clientWidth'],nav_geometry
+        assert nav_geometry['fullyVisible'],nav_geometry
+    page.locator('button[data-nav="overview"]').first.click()
+    page.wait_for_timeout(150)
     page.screenshot(path=str(ROOT/'screenshot_mobile.png'),full_page=True)
     page.set_viewport_size({'width':1440,'height':900})
     page.locator('button[data-nav="settings"]').last.click()
