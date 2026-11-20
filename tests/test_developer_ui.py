@@ -68,6 +68,19 @@ def run():
         assert not errors,errors
         page.set_viewport_size({'width':390,'height':780})
         page.wait_for_timeout(200)
+        resized_nav=page.evaluate('''() => {
+            const rail=document.querySelector('.navigation');
+            const active=rail?.querySelector('.nav-link.is-active');
+            if(!rail||!active)return {missing:true};
+            const railRect=rail.getBoundingClientRect();
+            const activeRect=active.getBoundingClientRect();
+            return {scrollWidth:rail.scrollWidth,clientWidth:rail.clientWidth,scrollLeft:rail.scrollLeft,
+                activeLeft:activeRect.left,activeRight:activeRect.right,railLeft:railRect.left,railRight:railRect.right,
+                fullyVisible:activeRect.left>=railRect.left-1&&activeRect.right<=railRect.right+1};
+        }''')
+        print('Active tab after desktop-to-mobile resize:',resized_nav)
+        assert not resized_nav.get('missing'),resized_nav
+        assert resized_nav['fullyVisible'],resized_nav
         captures=ROOT/'artifacts'/'ui'
         captures.mkdir(parents=True, exist_ok=True)
         # Hide only the test's transient operation toast for legible QA captures.
