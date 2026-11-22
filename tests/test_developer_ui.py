@@ -45,6 +45,22 @@ def run():
         page.wait_for_function('skellDesktop.diskStatus==="saved"')
         assert "pending retry" not in page.locator('#saveIndicator').inner_text().lower()
 
+        # CI pass badges must use the green status treatment defined by styles.css.
+        passed_badge = page.locator('.status-pill.status-passed').first
+        assert passed_badge.count() > 0, 'Seeded overview has no passed CI badge'
+        passed_colors = passed_badge.evaluate("""el => {
+          const probe = document.createElement('span');
+          probe.style.color = 'var(--green)';
+          document.body.appendChild(probe);
+          const expected = getComputedStyle(probe).color;
+          probe.remove();
+          return {actual: getComputedStyle(el).color, expected};
+        }""")
+        assert passed_colors['actual'] == passed_colors['expected'], passed_colors
+        captures = ROOT/'artifacts'/'ui'
+        captures.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(captures/'projecthub-overview-desktop.png'), full_page=True)
+
         page.locator('button[data-nav="developer"]').click()
         page.get_by_role('heading',name='Developer Command Center').wait_for()
         page.get_by_role('heading',name='Windows Builder').wait_for()
@@ -68,6 +84,10 @@ def run():
         assert not errors,errors
         page.set_viewport_size({'width':390,'height':780})
         page.wait_for_timeout(200)
+        nav_box=page.locator('#nav').bounding_box()
+        active_box=page.locator('button[data-nav="developer"]').bounding_box()
+        assert nav_box is not None and active_box is not None, 'Compact navigation geometry unavailable'
+        assert active_box['x'] >= nav_box['x']-1 and active_box['x']+active_box['width'] <= nav_box['x']+nav_box['width']+1, active_box
         captures=ROOT/'artifacts'/'ui'
         captures.mkdir(parents=True, exist_ok=True)
         # Hide only the test's transient operation toast for legible QA captures.
