@@ -32,6 +32,7 @@ jobs:
       - name: JavaScript syntax
         run: |
           node --check seed.js
+          node --check snapshot_freshness.js
           node --check app.js
           node --check desktop_bridge.js
           node --check dev_center.js
